@@ -27,7 +27,6 @@ use pocketmine\block\BaseSign;
 use pocketmine\block\Lectern;
 use pocketmine\block\tile\Sign;
 use pocketmine\block\utils\SignText;
-use pocketmine\entity\animation\ConsumingItemAnimation;
 use pocketmine\entity\Attribute;
 use pocketmine\entity\InvalidSkinException;
 use pocketmine\event\player\PlayerEditBookEvent;
@@ -45,6 +44,7 @@ use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\FilterNoisyPacketException;
+use pocketmine\network\mcpe\convert\ItemTranslator;
 use pocketmine\network\mcpe\InventoryManager;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\ActorEventPacket;
@@ -87,7 +87,6 @@ use pocketmine\network\mcpe\protocol\ShowCreditsPacket;
 use pocketmine\network\mcpe\protocol\SpawnExperienceOrbPacket;
 use pocketmine\network\mcpe\protocol\SubClientLoginPacket;
 use pocketmine\network\mcpe\protocol\TextPacket;
-use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\MismatchTransactionData;
@@ -307,24 +306,7 @@ class InGamePacketHandler extends PacketHandler{
 	}
 
 	public function handleActorEvent(ActorEventPacket $packet) : bool{
-		if($packet->actorRuntimeId !== $this->player->getId()){
-			//TODO HACK: EATING_ITEM is sent back to the server when the server sends it for other players (1.14 bug, maybe earlier)
-			return $packet->actorRuntimeId === ActorEvent::EATING_ITEM;
-		}
-
-		switch($packet->eventId){
-			case ActorEvent::EATING_ITEM: //TODO: ignore this and handle it server-side
-				$item = $this->player->getInventory()->getItemInHand();
-				if($item->isNull()){
-					return false;
-				}
-				$this->player->broadcastAnimation(new ConsumingItemAnimation($this->player, $this->player->getInventory()->getItemInHand()));
-				break;
-			default:
-				return false;
-		}
-
-		return true;
+		return true; //not used
 	}
 
 	public function handleInventoryTransaction(InventoryTransactionPacket $packet) : bool{
@@ -505,11 +487,19 @@ class InGamePacketHandler extends PacketHandler{
 				$vBlockPos = new Vector3($blockPos->getX(), $blockPos->getY(), $blockPos->getZ());
 				$this->player->interactBlock($vBlockPos, $data->getFace(), $clickPos);
 				if($this->player->getNetworkSession()->getProtocolId() < ProtocolInfo::PROTOCOL_1_21_20 || $data->getClientInteractPrediction() === PredictedResult::SUCCESS){
-					//always sync this in case plugins caused a different result than the client expected
-					//we *could* try to enhance detection of plugin-altered behaviour, but this would require propagating
-					//more information up the stack. For now I think this is good enough.
-					//if only the client would tell us what blocks it thinks changed...
-					$this->syncBlocksNearby($vBlockPos, $data->getFace());
+					//If the item has an associated blockstate ID, this means it will only place one block.
+					//We can avoid syncing the adjacent blocks of the place position in this case, since that's only
+					//necessary if there might be multiple blocks around the placement location affected.
+					//Adjacents of the clicked block are still always synced, since it's too complicated to figure out
+					//if the client might've predicted something in this case. However, since the clicked block is always
+					//"behind" the placed block, this shouldn't affect bridging or fast placement.
+					//This would be much easier if the client would just tell us which blocks it thinks changed...
+					$syncAdjacentFace = null;
+					if($data->getItemInHand()->getItemStack()->getBlockRuntimeId() === ItemTranslator::NO_BLOCK_RUNTIME_ID){
+						$this->session->getLogger()->debug("Placing held item might place multiple blocks client-side; doing full adjacent sync");
+						$syncAdjacentFace = $data->getFace();
+					}
+					$this->syncBlocksNearby($vBlockPos, $syncAdjacentFace);
 				}
 				return true;
 			case UseItemTransactionData::ACTION_CLICK_AIR:
@@ -518,6 +508,10 @@ class InGamePacketHandler extends PacketHandler{
 						$hungerAttr = $this->player->getAttributeMap()->get(Attribute::HUNGER) ?? throw new AssumptionFailedError();
 						$hungerAttr->markSynchronized(false);
 					}
+					//TODO: workaround goat horns getting stuck in the "using item" state
+					//this timed-trigger behaviour is also used for other items apart from food
+					//in the future we'll generalise this logic and add proper hooks for it
+					$this->player->setUsingItem(false);
 					return true;
 				}
 				$this->player->useHeldItem();
