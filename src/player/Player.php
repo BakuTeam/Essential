@@ -1819,7 +1819,9 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 
 	public function pickEntity(int $entityId) : bool{
 		$entity = $this->getWorld()->getEntity($entityId);
-		if($entity === null){
+		//TODO: HACK! We really shouldn't be keeping disconnected players (and generally flagged-for-despawn entities)
+		//in the world's entity table, but changing that is too risky for a hotfix. This workaround will do for now.
+		if($entity === null || $entity->isFlaggedForDespawn()){
 			return true;
 		}
 
@@ -2300,6 +2302,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer, Nev
 		}
 
 		return true;
+	}
+
+	/**
+	 * @internal
+	 * Returns whether the server is waiting for a response for a form with the given ID.
+	 */
+	public function hasPendingForm(int $formId) : bool{
+		return isset($this->forms[$formId]);
 	}
 
 	/**
