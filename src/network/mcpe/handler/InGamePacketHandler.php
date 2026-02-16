@@ -123,11 +123,13 @@ use const JSON_THROW_ON_ERROR;
  * This handler handles packets related to general gameplay.
  */
 #[SilentDiscard(ActorEventPacket::class, comment: "Not needed")]
+#[SilentDiscard(CraftingEventPacket::class, comment: "Not needed")]
 #[SilentDiscard(LevelSoundEventPacket::class, comment: "Sounds are always handled server side")]
 #[SilentDiscard(MobArmorEquipmentPacket::class, comment: "Not needed")]
 #[SilentDiscard(MovePlayerPacket::class, comment: "Not needed, noisy debug when landing on ground")]
 #[SilentDiscard(NetworkStackLatencyPacket::class, comment: "Not used, noisy debug")]
 #[SilentDiscard(PlayerHotbarPacket::class, comment: "Not needed")]
+#[SilentDiscard(PlayerInputPacket::class, comment: "Not needed")]
 #[SilentDiscard(SetActorMotionPacket::class, comment: "Not needed, erroneously sent by client when in a vehicle")]
 #[SilentDiscard(SpawnExperienceOrbPacket::class, comment: "XP drops should be server-calculated")]
 class InGamePacketHandler extends PacketHandler{
@@ -748,14 +750,6 @@ class InGamePacketHandler extends PacketHandler{
 		return true;
 	}
 
-	public function handlePlayerHotbar(PlayerHotbarPacket $packet) : bool{
-		return true; //this packet is useless
-	}
-
-	public function handleCraftingEvent(CraftingEventPacket $packet) : bool{
-		return true; //this is a broken useless packet, so we don't use it
-	}
-
 	/**
 	 * @throws PacketHandlingException
 	 */
@@ -813,10 +807,6 @@ class InGamePacketHandler extends PacketHandler{
 		}
 
 		return false;
-	}
-
-	public function handlePlayerInput(PlayerInputPacket $packet) : bool{
-		return false; //TODO
 	}
 
 	public function handleSetPlayerGameType(SetPlayerGameTypePacket $packet) : bool{
