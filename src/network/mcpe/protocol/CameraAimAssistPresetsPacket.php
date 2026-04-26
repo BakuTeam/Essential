@@ -1,0 +1,104 @@
+<?php
+
+/*
+ * This file is part of BedrockProtocol.
+ * Copyright (C) 2014-2022 PocketMine Team <https://github.com/pmmp/BedrockProtocol>
+ *
+ * BedrockProtocol is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+declare(strict_types=1);
+
+namespace pocketmine\network\mcpe\protocol;
+
+use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
+use pocketmine\network\mcpe\protocol\types\camera\CameraAimAssistCategories;
+use pocketmine\network\mcpe\protocol\types\camera\CameraAimAssistCategory;
+use pocketmine\network\mcpe\protocol\types\camera\CameraAimAssistPreset;
+use function count;
+
+class CameraAimAssistPresetsPacket extends DataPacket implements ClientboundPacket{
+	public const NETWORK_ID = ProtocolInfo::CAMERA_AIM_ASSIST_PRESETS_PACKET;
+
+	/** @var CameraAimAssistCategory[] */
+	private array $categories;
+	/** @var CameraAimAssistPreset[] */
+	private array $presets;
+	private int $operation;
+
+	/**
+	 * @generate-create-func
+	 * @param CameraAimAssistCategory[] $categories
+	 * @param CameraAimAssistPreset[]   $presets
+	 */
+	public static function create(array $categories, array $presets, int $operation) : self{
+		$result = new self;
+		$result->categories = $categories;
+		$result->presets = $presets;
+		$result->operation = $operation;
+		return $result;
+	}
+
+	/**
+	 * @return CameraAimAssistCategory[]
+	 */
+	public function getCategories() : array{ return $this->categories; }
+
+	/**
+	 * @return CameraAimAssistPreset[]
+	 */
+	public function getPresets() : array{ return $this->presets; }
+
+	public function getOperation() : int{ return $this->operation; }
+
+	protected function decodePayload(PacketSerializer $in) : void{
+		$this->categories = [];
+		for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_80){
+				$this->categories[] = CameraAimAssistCategory::read($in);
+			}else{
+				$categories = CameraAimAssistCategories::read($in);
+				foreach($categories->getCategories() as $category){
+					$this->categories[] = $category;
+				}
+			}
+		}
+
+		$this->presets = [];
+		for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+			$this->presets[] = CameraAimAssistPreset::read($in);
+		}
+
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_60){
+			$this->operation = $in->getByte();
+		}
+	}
+
+	protected function encodePayload(PacketSerializer $out) : void{
+		$out->putUnsignedVarInt(count($this->categories));
+		foreach($this->categories as $category){
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_80){
+				$category->write($out);
+			}else{
+				$categories = new CameraAimAssistCategories($category->getName(), [$category]);
+				$categories->write($out);
+			}
+		}
+
+		$out->putUnsignedVarInt(count($this->presets));
+		foreach($this->presets as $preset){
+			$preset->write($out);
+		}
+
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_60){
+			$out->putByte($this->operation);
+		}
+	}
+
+	public function handle(PacketHandlerInterface $handler) : bool{
+		return $handler->handleCameraAimAssistPresets($this);
+	}
+}

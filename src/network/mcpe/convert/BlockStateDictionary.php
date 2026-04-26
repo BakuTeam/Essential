@@ -1,0 +1,321 @@
+<?php
+
+/*
+ *
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
+ */
+
+declare(strict_types=1);
+
+namespace pocketmine\network\mcpe\convert;
+
+use pocketmine\data\bedrock\block\BlockStateData;
+use pocketmine\data\bedrock\block\BlockTypeNames;
+use pocketmine\nbt\LittleEndianNbtSerializer;
+use pocketmine\nbt\NbtDataException;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\TreeRoot;
+use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
+use pocketmine\utils\Utils;
+use pocketmine\world\format\io\GlobalBlockStateHandlers;
+use function array_key_first;
+use function array_map;
+use function count;
+use function get_debug_type;
+use function hash;
+use function hexdec;
+use function is_array;
+use function is_int;
+use function is_string;
+use function json_decode;
+use function ksort;
+use const JSON_THROW_ON_ERROR;
+
+/**
+ * Handles translation of network block runtime IDs into blockstate data, and vice versa
+ */
+final class BlockStateDictionary{
+	/**
+	 * @var int[][]|int[]
+	 * @phpstan-var array<string, array<string, int>|int>
+	 */
+	private array $stateDataToStateIdLookup = [];
+
+	/**
+	 * @var int[][]|null
+	 * @phpstan-var array<string, array<int, int>|int>|null
+	 */
+	private ?array $idMetaToStateIdLookupCache = null;
+
+	/**
+	 * @param BlockStateDictionaryEntry[] $states
+	 *
+	 * @phpstan-param list<BlockStateDictionaryEntry> $states
+	 */
+	public function __construct(
+		private array $states,
+		private bool $useHash = false
+	){
+		$table = [];
+		foreach($this->states as $stateId => $stateNbt){
+			$table[$stateNbt->getStateName()][$stateNbt->getRawStateProperties()] = $stateId;
+		}
+
+		//setup fast path for stateless blocks
+		foreach(Utils::stringifyKeys($table) as $name => $stateIds){
+			if(count($stateIds) === 1){
+				$this->stateDataToStateIdLookup[$name] = $stateIds[array_key_first($stateIds)];
+			}else{
+				$this->stateDataToStateIdLookup[$name] = $stateIds;
+			}
+		}
+
+		$standardSkull = $this->stateDataToStateIdLookup[BlockTypeNames::SKELETON_SKULL];
+		foreach([
+			BlockTypeNames::WITHER_SKELETON_SKULL,
+			BlockTypeNames::ZOMBIE_HEAD,
+			BlockTypeNames::PLAYER_HEAD,
+			BlockTypeNames::CREEPER_HEAD,
+			BlockTypeNames::DRAGON_HEAD,
+			BlockTypeNames::PIGLIN_HEAD
+		] as $skull){
+			if(!isset($this->stateDataToStateIdLookup[$skull])){
+				$this->stateDataToStateIdLookup[$skull] = $standardSkull;
+			}
+		}
+	}
+
+	/**
+	 * @return int[][]
+	 * @phpstan-return array<string, array<int, int>|int>
+	 */
+	private function getIdMetaToStateIdLookup() : array{
+		if($this->idMetaToStateIdLookupCache === null){
+			$table = [];
+			//TODO: if we ever allow mutating the dictionary, this would need to be rebuilt on modification
+
+			foreach($this->states as $i => $state){
+				$table[$state->getStateName()][$state->getMeta()] = $i;
+			}
+
+			$this->idMetaToStateIdLookupCache = [];
+			foreach(Utils::stringifyKeys($table) as $name => $metaToStateId){
+				//if only one meta value exists
+				if(count($metaToStateId) === 1){
+					$this->idMetaToStateIdLookupCache[$name] = $metaToStateId[array_key_first($metaToStateId)];
+				}else{
+					$this->idMetaToStateIdLookupCache[$name] = $metaToStateId;
+				}
+			}
+		}
+
+		return $this->idMetaToStateIdLookupCache;
+	}
+
+	public function generateDataFromStateId(int $networkRuntimeId) : ?BlockStateData{
+		return ($this->states[$networkRuntimeId] ?? null)?->generateStateData();
+	}
+
+	public function generateCurrentDataFromStateId(int $networkRuntimeId) : ?BlockStateData{
+		return ($this->states[$networkRuntimeId] ?? null)?->generateCurrentStateData();
+	}
+
+	/**
+	 * Searches for the appropriate state ID which matches the given blockstate NBT.
+	 * Returns null if there were no matches.
+	 */
+	public function lookupStateIdFromData(BlockStateData $data) : ?int{
+		$name = $data->getName();
+
+		$lookup = $this->stateDataToStateIdLookup[$name] ?? null;
+		return match(true){
+			$lookup === null => null,
+			is_int($lookup) => $lookup,
+			is_array($lookup) => $lookup[BlockStateDictionaryEntry::encodeStateProperties($data->getStates())] ?? null
+		};
+	}
+
+	/**
+	 * Returns the blockstate meta value associated with the given blockstate runtime ID.
+	 * This is used for serializing crafting recipe inputs.
+	 */
+	public function getMetaFromStateId(int $networkRuntimeId) : ?int{
+		return ($this->states[$networkRuntimeId] ?? null)?->getMeta();
+	}
+
+	/**
+	 * Returns the blockstate data associated with the given block ID and meta value.
+	 * This is used for deserializing crafting recipe inputs.
+	 */
+	public function lookupStateIdFromIdMeta(string $id, int $meta) : ?int{
+		$metas = $this->getIdMetaToStateIdLookup()[$id] ?? null;
+		return match(true){
+			$metas === null => null,
+			is_int($metas) => $metas,
+			is_array($metas) => $metas[$meta] ?? null
+		};
+	}
+
+	/**
+	 * Returns an array mapping runtime ID => blockstate data.
+	 * @return BlockStateDictionaryEntry[]
+	 * @phpstan-return array<int, BlockStateDictionaryEntry>
+	 */
+	public function getStates() : array{ return $this->states; }
+
+	/**
+	 * @return BlockStateData[]
+	 * @phpstan-return list<BlockStateData>
+	 *
+	 * @throws NbtDataException
+	 */
+	public static function loadPaletteFromString(string $blockPaletteContents) : array{
+		return array_map(
+			fn(TreeRoot $root) => BlockStateData::fromNbt($root->mustGetCompoundTag()),
+			(new NetworkNbtSerializer())->readMultiple($blockPaletteContents)
+		);
+	}
+
+	public static function loadPaletteFromJson(string $blockPaletteContents) : array {
+		$decoded = json_decode($blockPaletteContents, true, flags: JSON_THROW_ON_ERROR);
+		if (!is_array($decoded)) {
+			throw new \InvalidArgumentException("Invalid JSON palette data, expected array at root");
+		}
+
+		$entries = [];
+
+		foreach ($decoded as $entry) {
+			if (!isset($entry["name"], $entry["states"]) || !is_array($entry["states"])) {
+				throw new \InvalidArgumentException("Invalid entry in palette: missing name or states");
+			}
+
+			$name = $entry["name"];
+			$version = (int)($entry["version"] ?? BlockStateData::CURRENT_VERSION);
+
+			$stateTags = [];
+
+			foreach ($entry["states"] as $state) {
+				if (!isset($state["name"], $state["type"], $state["value"])) {
+					throw new \InvalidArgumentException("Invalid state in $name: missing fields");
+				}
+
+				$key = $state["name"];
+				$type = (int)$state["type"];
+				$value = $state["value"];
+
+				switch ($type) {
+					case 1: // Byte
+						$tag = new \pocketmine\nbt\tag\ByteTag((int)$value);
+						break;
+					case 2: // Short
+						$tag = new \pocketmine\nbt\tag\ShortTag((int)$value);
+						break;
+					case 3: // Int
+						$tag = new \pocketmine\nbt\tag\IntTag((int)$value);
+						break;
+					case 4: // Long
+						$tag = new \pocketmine\nbt\tag\LongTag((int)$value);
+						break;
+					case 8: // String
+						$tag = new \pocketmine\nbt\tag\StringTag((string)$value);
+						break;
+					default:
+						throw new \InvalidArgumentException("Unknown NBT type $type for state $key in $name");
+				}
+
+				$stateTags[$key] = $tag;
+			}
+
+			$entries[] = new BlockStateData($name, $stateTags, $version);
+		}
+
+		return $entries;
+	}
+
+	private static function getHashStateId(BlockStateData $data) : int
+	{
+		$name = $data->getName();
+
+		$stream = new LittleEndianNbtSerializer();
+
+		$compound = new CompoundTag();
+		$compound->setString("name", $name);
+
+		$states = new CompoundTag();
+
+		$blockStates = $data->getStates();
+		ksort($blockStates);
+
+		foreach ($blockStates as $key => $state) {
+			$states->setTag($key, $state);
+		}
+
+		$compound->setTag("states", $states);
+
+		$hash = hash("fnv1a32", $stream->write(new TreeRoot($compound)));
+		return hexdec($hash);
+	}
+
+	public static function loadFromString(string $blockPaletteContents, string $metaMapContents, bool $useHash = false, ?\Closure $upgradeFunc = null) : self{
+		$upgrader = GlobalBlockStateHandlers::getUpgrader()->getBlockStateUpgrader();
+		$metaMap = json_decode($metaMapContents, flags: JSON_THROW_ON_ERROR);
+		if(!is_array($metaMap)){
+			throw new \InvalidArgumentException("Invalid metaMap, expected array for root type, got " . get_debug_type($metaMap));
+		}
+
+		$entries = [];
+
+		$uniqueNames = [];
+
+		//this hack allows the internal cache index to use interned strings which are already available in the
+		//core code anyway, saving around 40 KB of memory
+		foreach((new \ReflectionClass(BlockTypeNames::class))->getConstants() as $value){
+			if(is_string($value)){
+				$uniqueNames[$value] = $value;
+			}
+		}
+
+		$paletteEntries = str_starts_with(ltrim($blockPaletteContents), "{") || str_starts_with(ltrim($blockPaletteContents), "[")
+			? self::loadPaletteFromJson($blockPaletteContents)
+			: self::loadPaletteFromString($blockPaletteContents);
+
+		foreach ($paletteEntries as $i => $state) {
+
+			$meta = $metaMap[$i] ?? null;
+			if($meta === null){
+				throw new \InvalidArgumentException("Missing associated meta value for state $i (" . $state->toNbt() . ")");
+			}
+			if(!is_int($meta)){
+				throw new \InvalidArgumentException("Invalid metaMap offset $i, expected int, got " . get_debug_type($meta));
+			}
+			$newState = $upgrader->upgrade($state);
+			$uniqueName = $uniqueNames[$newState->getName()] ??= $newState->getName();
+			$entries[$useHash ? self::getHashStateId($state) : $i] = new BlockStateDictionaryEntry($uniqueName, $newState->getStates(), $meta, $newState->equals($state) ? null : $state);
+
+			if ($upgradeFunc !== null) {
+				$state = $upgradeFunc($state);
+				$entries[$useHash ? self::getHashStateId($state) : $i] = new BlockStateDictionaryEntry($uniqueName, $newState->getStates(), $meta, null);
+			}
+		}
+
+		return new self($entries, $useHash);
+	}
+
+	public function networkIdsAreHashes() : bool {
+		return $this->useHash;
+	}
+}
