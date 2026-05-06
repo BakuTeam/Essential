@@ -1,0 +1,52 @@
+<?php
+
+/*
+ * This file is part of BedrockProtocol.
+ * Copyright (C) 2014-2022 PocketMine Team <https://github.com/pmmp/BedrockProtocol>
+ *
+ * BedrockProtocol is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+declare(strict_types=1);
+
+namespace pocketmine\network\mcpe\protocol\types;
+
+use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
+use function count;
+
+final class SyncWorldClocksInitializeRegistry extends SyncWorldClocksPayload{
+	public const ID = SyncWorldClocksType::INITIALIZE_REGISTRY;
+
+	/**
+	 * @param SyncWorldClockData[] $clockData
+	 * @phpstan-param list<SyncWorldClockData> $clockData
+	 */
+	public function __construct(private array $clockData){}
+
+	public function getTypeId() : int{ return self::ID; }
+
+	/**
+	 * @return SyncWorldClockData[]
+	 * @phpstan-return list<SyncWorldClockData>
+	 */
+	public function getClockData() : array{ return $this->clockData; }
+
+	public static function read(PacketSerializer $in) : self{
+		$clockData = [];
+		for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
+			$clockData[] = SyncWorldClockData::read($in);
+		}
+
+		return new self($clockData);
+	}
+
+	public function write(PacketSerializer $out) : void{
+		$out->putUnsignedVarInt(count($this->clockData));
+		foreach($this->clockData as $data){
+			$data->write($out);
+		}
+	}
+}

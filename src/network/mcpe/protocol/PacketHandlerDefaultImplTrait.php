@@ -893,6 +893,10 @@ trait PacketHandlerDefaultImplTrait{
 		return false;
 	}
 
+	public function handlePrimitiveShapes(PrimitiveShapesPacket $packet) : bool{
+		return false;
+	}
+
 	public function handleServerScriptDebugDrawer(ServerScriptDebugDrawerPacket $packet) : bool{
 		return false;
 	}
@@ -962,6 +966,14 @@ trait PacketHandlerDefaultImplTrait{
 	}
 
 	public function handleClientboundAttributeLayerSync(ClientboundAttributeLayerSyncPacket $packet) : bool{
+		return false;
+	}
+
+	public function handleServerStoreInfo(ServerStoreInfoPacket $packet) : bool{
+		return false;
+	}
+
+	public function handleServerPresenceInfo(ServerPresenceInfoPacket $packet) : bool{
 		return false;
 	}
 }

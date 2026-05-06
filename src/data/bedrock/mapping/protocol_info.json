@@ -1,11 +1,11 @@
 {
     "version": {
         "major": 1,
-        "minor": 21,
-        "patch": 130,
+        "minor": 26,
+        "patch": 20,
         "revision": 28,
         "beta": false,
-        "protocol_version": 897
+        "protocol_version": 975
     },
     "packets": {
         "LoginPacket": 1,
@@ -214,10 +214,25 @@
         "PlayerUpdateEntityOverridesPacket": 325,
         "PlayerLocationPacket": 326,
         "ClientboundControlSchemeSetPacket": 327,
-        "DebugDrawerPacket": 328,
+        "PrimitiveShapesPacket": 328,
         "ServerboundPackSettingChangePacket": 329,
         "ClientboundDataStorePacket": 330,
         "GraphicsOverrideParameterPacket": 331,
-        "ServerboundDataStorePacket": 332
+        "ServerboundDataStorePacket": 332,
+        "ClientboundDataDrivenUIShowScreenPacket": 333,
+        "ClientboundDataDrivenUICloseScreenPacket": 334,
+        "ClientboundDataDrivenUIReloadPacket": 335,
+        "ClientboundTextureShiftPacket": 336,
+        "VoxelShapesPacket": 337,
+        "CameraSplinePacket": 338,
+        "CameraAimAssistActorPriorityPacket": 339,
+        "ResourcePacksReadyForValidationPacket": 340,
+        "LocatorBarPacket": 341,
+        "PartyChangedPacket": 342,
+        "ServerboundDataDrivenScreenClosedPacket": 343,
+        "SyncWorldClocksPacket": 344,
+        "ClientboundAttributeLayerSyncPacket": 345,
+        "ServerStoreInfoPacket": 346,
+        "ServerPresenceInfoPacket": 347
     }
 }

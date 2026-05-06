@@ -16,28 +16,38 @@ namespace pocketmine\network\mcpe\protocol;
 
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 
-class PartyChangedPacket extends DataPacket{
+class PartyChangedPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::PARTY_CHANGED_PACKET;
 
 	private string $partyId;
+	private bool $partyLeader = false;
 
 	/**
 	 * @generate-create-func
 	 */
-	public static function create(string $partyId) : self{
+	public static function create(string $partyId, bool $partyLeader = false) : self{
 		$result = new self;
 		$result->partyId = $partyId;
+		$result->partyLeader = $partyLeader;
 		return $result;
 	}
 
 	public function getPartyId() : string{ return $this->partyId; }
 
+	public function isPartyLeader() : bool{ return $this->partyLeader; }
+
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->partyId = $in->getString();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$this->partyLeader = $in->getBool();
+		}
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putString($this->partyId);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$out->putBool($this->partyLeader);
+		}
 	}
 
 	public function handle(PacketHandlerInterface $handler) : bool{

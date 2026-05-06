@@ -13,13 +13,15 @@ final class ServerJoinInformation{
 
 	public function getGatheringJoinInfo() : ?GatheringJoinInfo{ return $this->gatheringJoinInfo; }
 
-	public static function read(PacketSerializer $in) : self{
+	public static function read(PacketSerializer $in, ?int $protocolId = null) : self{
+		$protocolId ??= $in->getProtocolId();
 		return new self(
-			$in->readOptional(fn() => GatheringJoinInfo::read($in))
+			$in->readOptional(fn() => GatheringJoinInfo::read($in, $protocolId))
 		);
 	}
 
-	public function write(PacketSerializer $out) : void{
-		$out->writeOptional($this->gatheringJoinInfo, fn(GatheringJoinInfo $info) => $info->write($out));
+	public function write(PacketSerializer $out, ?int $protocolId = null) : void{
+		$protocolId ??= $out->getProtocolId();
+		$out->writeOptional($this->gatheringJoinInfo, fn(GatheringJoinInfo $info) => $info->write($out, $protocolId));
 	}
 }

@@ -29,6 +29,7 @@ class LevelSoundEventPacket extends DataPacket implements ClientboundPacket, Ser
 	public bool $isBabyMob = false; //...
 	public bool $disableRelativeVolume = false;
 	public int $actorUniqueId = -1;
+	public ?Vector3 $firePosition = null;
 
 	/**
 	 * @generate-create-func
@@ -41,6 +42,7 @@ class LevelSoundEventPacket extends DataPacket implements ClientboundPacket, Ser
 		bool $isBabyMob,
 		bool $disableRelativeVolume,
 		int $actorUniqueId,
+		?Vector3 $firePosition = null,
 	) : self{
 		$result = new self;
 		$result->sound = $sound;
@@ -50,11 +52,12 @@ class LevelSoundEventPacket extends DataPacket implements ClientboundPacket, Ser
 		$result->isBabyMob = $isBabyMob;
 		$result->disableRelativeVolume = $disableRelativeVolume;
 		$result->actorUniqueId = $actorUniqueId;
+		$result->firePosition = $firePosition;
 		return $result;
 	}
 
 	public static function nonActorSound(int $sound, Vector3 $position, bool $disableRelativeVolume, int $extraData = -1) : self{
-		return self::create($sound, $position, $extraData, ":", false, $disableRelativeVolume, -1);
+		return self::create($sound, $position, $extraData, ":", false, $disableRelativeVolume, -1, null);
 	}
 
 	protected function decodePayload(PacketSerializer $in) : void{
@@ -66,6 +69,9 @@ class LevelSoundEventPacket extends DataPacket implements ClientboundPacket, Ser
 		$this->disableRelativeVolume = $in->getBool();
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_70){
 			$this->actorUniqueId = $in->getLLong(); //WHY IS THIS NON-STANDARD?
+			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+				$this->firePosition = $in->readOptional($in->getVector3(...));
+			}
 		}
 	}
 
@@ -78,6 +84,9 @@ class LevelSoundEventPacket extends DataPacket implements ClientboundPacket, Ser
 		$out->putBool($this->disableRelativeVolume);
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_70){
 			$out->putLLong($this->actorUniqueId);
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+				$out->writeOptional($this->firePosition, $out->putVector3(...));
+			}
 		}
 	}
 

@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types;
 
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use function count;
 
@@ -53,10 +54,10 @@ final class EnchantOption{
 	/**
 	 * @return Enchant[]
 	 */
-	private static function readEnchantList(PacketSerializer $in) : array{
+	private static function readEnchantList(PacketSerializer $in, int $protocolId) : array{
 		$result = [];
 		for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
-			$result[] = Enchant::read($in);
+			$result[] = Enchant::read($in, $protocolId);
 		}
 		return $result;
 	}
@@ -64,20 +65,21 @@ final class EnchantOption{
 	/**
 	 * @param Enchant[] $list
 	 */
-	private static function writeEnchantList(PacketSerializer $out, array $list) : void{
+	private static function writeEnchantList(PacketSerializer $out, array $list, int $protocolId) : void{
 		$out->putUnsignedVarInt(count($list));
 		foreach($list as $item){
-			$item->write($out);
+			$item->write($out, $protocolId);
 		}
 	}
 
-	public static function read(PacketSerializer $in) : self{
-		$cost = $in->getUnsignedVarInt();
+	public static function read(PacketSerializer $in, ?int $protocolId = null) : self{
+		$protocolId ??= $in->getProtocolId();
+		$cost = $protocolId >= ProtocolInfo::PROTOCOL_1_26_20 ? $in->getByte() : $in->getUnsignedVarInt();
 
 		$slotFlags = $in->getLInt();
-		$equipActivatedEnchants = self::readEnchantList($in);
-		$heldActivatedEnchants = self::readEnchantList($in);
-		$selfActivatedEnchants = self::readEnchantList($in);
+		$equipActivatedEnchants = self::readEnchantList($in, $protocolId);
+		$heldActivatedEnchants = self::readEnchantList($in, $protocolId);
+		$selfActivatedEnchants = self::readEnchantList($in, $protocolId);
 
 		$name = $in->getString();
 		$optionId = $in->readRecipeNetId();
@@ -85,13 +87,18 @@ final class EnchantOption{
 		return new self($cost, $slotFlags, $equipActivatedEnchants, $heldActivatedEnchants, $selfActivatedEnchants, $name, $optionId);
 	}
 
-	public function write(PacketSerializer $out) : void{
-		$out->putUnsignedVarInt($this->cost);
+	public function write(PacketSerializer $out, ?int $protocolId = null) : void{
+		$protocolId ??= $out->getProtocolId();
+		if($protocolId >= ProtocolInfo::PROTOCOL_1_26_20){
+			$out->putByte($this->cost);
+		}else{
+			$out->putUnsignedVarInt($this->cost);
+		}
 
 		$out->putLInt($this->slotFlags);
-		self::writeEnchantList($out, $this->equipActivatedEnchantments);
-		self::writeEnchantList($out, $this->heldActivatedEnchantments);
-		self::writeEnchantList($out, $this->selfActivatedEnchantments);
+		self::writeEnchantList($out, $this->equipActivatedEnchantments, $protocolId);
+		self::writeEnchantList($out, $this->heldActivatedEnchantments, $protocolId);
+		self::writeEnchantList($out, $this->selfActivatedEnchantments, $protocolId);
 
 		$out->putString($this->name);
 		$out->writeRecipeNetId($this->optionId);

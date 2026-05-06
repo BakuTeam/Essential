@@ -26,11 +26,12 @@ class PlaySoundPacket extends DataPacket implements ClientboundPacket{
 	public float $z;
 	public float $volume;
 	public float $pitch;
+	public ?int $serverSoundHandle = null;
 
 	/**
 	 * @generate-create-func
 	 */
-	public static function create(string $soundName, float $x, float $y, float $z, float $volume, float $pitch) : self{
+	public static function create(string $soundName, float $x, float $y, float $z, float $volume, float $pitch, ?int $serverSoundHandle = null) : self{
 		$result = new self;
 		$result->soundName = $soundName;
 		$result->x = $x;
@@ -38,6 +39,7 @@ class PlaySoundPacket extends DataPacket implements ClientboundPacket{
 		$result->z = $z;
 		$result->volume = $volume;
 		$result->pitch = $pitch;
+		$result->serverSoundHandle = $serverSoundHandle;
 		return $result;
 	}
 
@@ -49,6 +51,9 @@ class PlaySoundPacket extends DataPacket implements ClientboundPacket{
 		$this->z = $blockPosition->getZ() / 8;
 		$this->volume = $in->getLFloat();
 		$this->pitch = $in->getLFloat();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$this->serverSoundHandle = $in->readOptional($in->getLLong(...));
+		}
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
@@ -56,6 +61,9 @@ class PlaySoundPacket extends DataPacket implements ClientboundPacket{
 		$out->putBlockPosition(new BlockPosition((int) ($this->x * 8), (int) ($this->y * 8), (int) ($this->z * 8)), $out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_10);
 		$out->putLFloat($this->volume);
 		$out->putLFloat($this->pitch);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$out->writeOptional($this->serverSoundHandle, $out->putLLong(...));
+		}
 	}
 
 	public function handle(PacketHandlerInterface $handler) : bool{

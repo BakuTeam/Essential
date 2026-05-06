@@ -21,24 +21,34 @@ class UpdateClientOptionsPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::UPDATE_CLIENT_OPTIONS_PACKET;
 
 	private ?GraphicsMode $graphicsMode;
+	private ?bool $filterProfanityChange = null;
 
 	/**
 	 * @generate-create-func
 	 */
-	public static function create(?GraphicsMode $graphicsMode) : self{
+	public static function create(?GraphicsMode $graphicsMode, ?bool $filterProfanityChange = null) : self{
 		$result = new self;
 		$result->graphicsMode = $graphicsMode;
+		$result->filterProfanityChange = $filterProfanityChange;
 		return $result;
 	}
 
 	public function getGraphicsMode() : ?GraphicsMode{ return $this->graphicsMode; }
 
+	public function getFilterProfanityChange() : ?bool{ return $this->filterProfanityChange; }
+
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->graphicsMode = $in->readOptional(fn() => GraphicsMode::fromPacket($in->getByte()));
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$this->filterProfanityChange = $in->readOptional($in->getBool(...));
+		}
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->writeOptional($this->graphicsMode, fn(GraphicsMode $v) => $out->putByte($v->value));
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$out->writeOptional($this->filterProfanityChange, $out->putBool(...));
+		}
 	}
 
 	public function handle(PacketHandlerInterface $handler) : bool{

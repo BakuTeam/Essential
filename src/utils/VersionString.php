@@ -66,7 +66,7 @@ class VersionString{
 	public function getFullVersion(bool $build = false) : string{
 		$retval = $this->baseVersion;
 		if($this->isDevBuild){
-			$retval .= "-hybrid";
+			$retval .= "";
 			if($build && $this->buildNumber > 0){
 				$retval .= "." . $this->buildNumber;
 			}

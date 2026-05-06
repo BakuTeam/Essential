@@ -35,9 +35,12 @@ class ClientMovementPredictionSyncPacket extends DataPacket implements Serverbou
 	private float $jumpStrength;
 	private float $health;
 	private float $hunger;
+	private float $frictionModifier = 0.0;
+	private float $bounciness = 0.0;
+	private float $airDragModifier = 0.0;
 
 	private int $actorUniqueId;
-	private bool $actorFlyingState;
+	private bool $actorFlyingState = false;
 
 	/**
 	 * @generate-create-func
@@ -55,6 +58,9 @@ class ClientMovementPredictionSyncPacket extends DataPacket implements Serverbou
 		float $hunger,
 		int $actorUniqueId,
 		bool $actorFlyingState,
+		float $frictionModifier = 0.0,
+		float $bounciness = 0.0,
+		float $airDragModifier = 0.0,
 	) : self{
 		$result = new self;
 		$result->flags = $flags;
@@ -67,6 +73,9 @@ class ClientMovementPredictionSyncPacket extends DataPacket implements Serverbou
 		$result->jumpStrength = $jumpStrength;
 		$result->health = $health;
 		$result->hunger = $hunger;
+		$result->frictionModifier = $frictionModifier;
+		$result->bounciness = $bounciness;
+		$result->airDragModifier = $airDragModifier;
 		$result->actorUniqueId = $actorUniqueId;
 		$result->actorFlyingState = $actorFlyingState;
 		return $result;
@@ -85,12 +94,15 @@ class ClientMovementPredictionSyncPacket extends DataPacket implements Serverbou
 		float $hunger,
 		int $actorUniqueId,
 		bool $actorFlyingState,
+		float $frictionModifier = 0.0,
+		float $bounciness = 0.0,
+		float $airDragModifier = 0.0,
 	) : self{
 		if($flags->getLength() !== self::FLAG_LENGTH){
 			throw new \InvalidArgumentException("Input flags must be " . self::FLAG_LENGTH . " bits long");
 		}
 
-		return self::internalCreate($flags, $scale, $width, $height, $movementSpeed, $underwaterMovementSpeed, $lavaMovementSpeed, $jumpStrength, $health, $hunger, $actorUniqueId, $actorFlyingState);
+		return self::internalCreate($flags, $scale, $width, $height, $movementSpeed, $underwaterMovementSpeed, $lavaMovementSpeed, $jumpStrength, $health, $hunger, $actorUniqueId, $actorFlyingState, $frictionModifier, $bounciness, $airDragModifier);
 	}
 
 	public function getFlags() : BitSet{ return $this->flags; }
@@ -113,13 +125,22 @@ class ClientMovementPredictionSyncPacket extends DataPacket implements Serverbou
 
 	public function getHunger() : float{ return $this->hunger; }
 
+	public function getFrictionModifier() : float{ return $this->frictionModifier; }
+
+	public function getBounciness() : float{ return $this->bounciness; }
+
+	public function getAirDragModifier() : float{ return $this->airDragModifier; }
+
 	public function getActorUniqueId() : int{ return $this->actorUniqueId; }
 
 	public function getActorFlyingState() : bool{ return $this->actorFlyingState; }
 
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->flags = BitSet::read($in, match(true) {
-			$in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_130 => self::FLAG_LENGTH,
+			$in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20 => self::FLAG_LENGTH,
+			$in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_130 => 127,
+			$in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_110 => 126,
+			$in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_90 => 125,
 			$in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_80 => 124,
 			$in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_70 => 123,
 			default => 120,
@@ -133,6 +154,11 @@ class ClientMovementPredictionSyncPacket extends DataPacket implements Serverbou
 		$this->jumpStrength = $in->getLFloat();
 		$this->health = $in->getLFloat();
 		$this->hunger = $in->getLFloat();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$this->frictionModifier = $in->getLFloat();
+			$this->bounciness = $in->getLFloat();
+			$this->airDragModifier = $in->getLFloat();
+		}
 		$this->actorUniqueId = $in->getActorUniqueId();
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_70){
 			$this->actorFlyingState = $in->getBool();
@@ -141,7 +167,10 @@ class ClientMovementPredictionSyncPacket extends DataPacket implements Serverbou
 
 	protected function encodePayload(PacketSerializer $out) : void{
 		$this->flags->write($out, match(true) {
-			$out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_130 => self::FLAG_LENGTH,
+			$out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20 => self::FLAG_LENGTH,
+			$out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_130 => 127,
+			$out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_110 => 126,
+			$out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_90 => 125,
 			$out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_80 => 124,
 			$out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_70 => 123,
 			default => 120,
@@ -155,6 +184,11 @@ class ClientMovementPredictionSyncPacket extends DataPacket implements Serverbou
 		$out->putLFloat($this->jumpStrength);
 		$out->putLFloat($this->health);
 		$out->putLFloat($this->hunger);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$out->putLFloat($this->frictionModifier);
+			$out->putLFloat($this->bounciness);
+			$out->putLFloat($this->airDragModifier);
+		}
 		$out->putActorUniqueId($this->actorUniqueId);
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_70){
 			$out->putBool($this->actorFlyingState);

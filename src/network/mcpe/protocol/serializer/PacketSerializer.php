@@ -319,6 +319,61 @@ class PacketSerializer extends BinaryStream{
 	}
 
 	/**
+	 * 1.26.20 uses this compact descriptor in inventory slot/equipment packets instead of the regular stack wrapper.
+	 *
+	 * @throws PacketDecodeException
+	 * @throws BinaryDataException
+	 */
+	public function getNetworkItemStackDescriptor() : ItemStackWrapper{
+		$id = $this->getLShort();
+		$count = $this->getLShort();
+		$meta = $this->getUnsignedVarInt();
+
+		$stackId = 0;
+		if($this->getBool()){
+			$this->getUnsignedVarInt(); //variant, currently unused by the server
+			$stackId = $this->getVarInt();
+		}
+
+		$blockRuntimeId = $this->getUnsignedVarInt();
+		$rawExtraData = $this->getString();
+		if($id === 0){
+			return new ItemStackWrapper($stackId, ItemStack::null());
+		}
+
+		$extraData = self::decoder($this->getProtocolId(), $rawExtraData, 0);
+		$stack = self::readExtraItemStackData($extraData, $id, $meta, $count, $blockRuntimeId);
+		if(!$extraData->feof()){
+			throw new PacketDecodeException("Unexpected trailing extradata for network item descriptor $id");
+		}
+
+		return new ItemStackWrapper($stackId, $stack);
+	}
+
+	public function putNetworkItemStackDescriptor(ItemStackWrapper $itemStackWrapper) : void{
+		$item = $itemStackWrapper->getItemStack();
+		$this->putLShort($item->getId());
+		$this->putLShort($item->getCount());
+		$this->putUnsignedVarInt($item->getMeta());
+
+		$this->putBool($hasNetId = $itemStackWrapper->getStackId() !== 0);
+		if($hasNetId){
+			$this->putUnsignedVarInt(0); //variant, currently unused by the client
+			$this->putVarInt($itemStackWrapper->getStackId());
+		}
+
+		$this->putUnsignedVarInt($item->getBlockRuntimeId());
+		if($item->getId() === 0){
+			$this->putString("");
+			return;
+		}
+
+		$extraData = self::encoder($this->getProtocolId());
+		self::putExtraItemStackData($extraData, $item);
+		$this->putString($extraData->getBuffer());
+	}
+
+	/**
 	 * @phpstan-param \Closure(PacketSerializer) : void $readExtraCrapInTheMiddle
 	 *
 	 * @throws PacketDecodeException

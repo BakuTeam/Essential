@@ -42,14 +42,14 @@ class PlayerEnchantOptionsPacket extends DataPacket implements ClientboundPacket
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->options = [];
 		for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
-			$this->options[] = EnchantOption::read($in);
+			$this->options[] = EnchantOption::read($in, $in->getProtocolId());
 		}
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putUnsignedVarInt(count($this->options));
 		foreach($this->options as $option){
-			$option->write($out);
+			$option->write($out, $out->getProtocolId());
 		}
 	}
 

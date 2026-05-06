@@ -51,7 +51,7 @@ class VersionCommand extends VanillaCommand{
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		$sender->sendMessage("This server is using Dummy " . VersionInfo::BASE_VERSION . " for Minecraft: Bedrock Edition v1.16-v" . ProtocolInfo::MINECRAFT_VERSION_NETWORK . " [Lunarix Edition]");
+		$sender->sendMessage("This server is using NG-PocketMine-MP " . VersionInfo::BASE_VERSION . " for Minecraft: Bedrock Edition v1.16.100-v" . ProtocolInfo::MINECRAFT_VERSION_NETWORK . " [Powered By NG-PocketMine-MP]");
 		return true;
 	}
 }

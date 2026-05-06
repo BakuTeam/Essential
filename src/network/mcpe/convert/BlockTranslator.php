@@ -45,6 +45,10 @@ final class BlockTranslator{
 
 	private const PATHS = [
 		ProtocolInfo::CURRENT_PROTOCOL => [
+			self::CANONICAL_BLOCK_STATES_PATH => '',
+			self::BLOCK_STATE_META_MAP_PATH => '',
+		],
+		ProtocolInfo::PROTOCOL_1_26_10 => [
 			self::CANONICAL_BLOCK_STATES_PATH => '-1.26.10',
 			self::BLOCK_STATE_META_MAP_PATH => '-1.26.10',
 		],
@@ -53,20 +57,20 @@ final class BlockTranslator{
 			self::BLOCK_STATE_META_MAP_PATH => '-1.26.0',
 		],
 		ProtocolInfo::PROTOCOL_1_21_130 => [
-			self::CANONICAL_BLOCK_STATES_PATH => '',
-			self::BLOCK_STATE_META_MAP_PATH => '',
+			self::CANONICAL_BLOCK_STATES_PATH => '-1.26.0',
+			self::BLOCK_STATE_META_MAP_PATH => '-1.26.0',
 		],
 		ProtocolInfo::PROTOCOL_1_21_124 => [
-			self::CANONICAL_BLOCK_STATES_PATH => '',
-			self::BLOCK_STATE_META_MAP_PATH => '',
+			self::CANONICAL_BLOCK_STATES_PATH => '-1.26.0',
+			self::BLOCK_STATE_META_MAP_PATH => '-1.26.0',
 		],
 		ProtocolInfo::PROTOCOL_1_21_120 => [
-			self::CANONICAL_BLOCK_STATES_PATH => '',
-			self::BLOCK_STATE_META_MAP_PATH => '',
+			self::CANONICAL_BLOCK_STATES_PATH => '-1.26.0',
+			self::BLOCK_STATE_META_MAP_PATH => '-1.26.0',
 		],
 		ProtocolInfo::PROTOCOL_1_21_110 => [
-			self::CANONICAL_BLOCK_STATES_PATH => '',
-			self::BLOCK_STATE_META_MAP_PATH => '',
+			self::CANONICAL_BLOCK_STATES_PATH => '-1.26.0',
+			self::BLOCK_STATE_META_MAP_PATH => '-1.26.0',
 		],
 		ProtocolInfo::PROTOCOL_1_21_100 => [
 			self::CANONICAL_BLOCK_STATES_PATH => '-1.21.100',

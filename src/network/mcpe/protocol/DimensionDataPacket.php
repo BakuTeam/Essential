@@ -53,7 +53,7 @@ class DimensionDataPacket extends DataPacket implements ClientboundPacket{
 
 		for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; $i++){
 			$dimensionNameId = $in->getString();
-			$dimensionData = DimensionData::read($in);
+			$dimensionData = DimensionData::read($in, $in->getProtocolId());
 
 			if(isset($this->definitions[$dimensionNameId])){
 				throw new PacketDecodeException("Repeated dimension data for key \"$dimensionNameId\"");
@@ -70,7 +70,7 @@ class DimensionDataPacket extends DataPacket implements ClientboundPacket{
 
 		foreach($this->definitions as $dimensionNameId => $definition){
 			$out->putString((string) $dimensionNameId); //@phpstan-ignore-line
-			$definition->write($out);
+			$definition->write($out, $out->getProtocolId());
 		}
 	}
 

@@ -30,13 +30,15 @@ final class LocatorBarWaypointPayload{
 
 	public function getAction() : int{ return $this->action; }
 
-	public static function read(PacketSerializer $in) : self{
-		return new self($in->getUUID(), LocatorBarWaypoint::read($in), $in->getByte());
+	public static function read(PacketSerializer $in, ?int $protocolId = null) : self{
+		$protocolId ??= $in->getProtocolId();
+		return new self($in->getUUID(), LocatorBarWaypoint::read($in, $protocolId), $in->getByte());
 	}
 
-	public function write(PacketSerializer $out) : void{
+	public function write(PacketSerializer $out, ?int $protocolId = null) : void{
+		$protocolId ??= $out->getProtocolId();
 		$out->putUUID($this->group);
-		$this->waypoint->write($out);
+		$this->waypoint->write($out, $protocolId);
 		$out->putByte($this->action);
 	}
 }

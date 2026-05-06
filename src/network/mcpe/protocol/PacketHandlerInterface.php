@@ -454,6 +454,8 @@ interface PacketHandlerInterface{
 
 	public function handleClientboundControlSchemeSet(ClientboundControlSchemeSetPacket $packet) : bool;
 
+	public function handlePrimitiveShapes(PrimitiveShapesPacket $packet) : bool;
+
 	public function handleServerScriptDebugDrawer(ServerScriptDebugDrawerPacket $packet) : bool;
 
 	public function handleServerboundPackSettingChange(ServerboundPackSettingChangePacket $packet) : bool;
@@ -489,4 +491,8 @@ interface PacketHandlerInterface{
 	public function handleSyncWorldClocks(SyncWorldClocksPacket $packet) : bool;
 
 	public function handleClientboundAttributeLayerSync(ClientboundAttributeLayerSyncPacket $packet) : bool;
+
+	public function handleServerStoreInfo(ServerStoreInfoPacket $packet) : bool;
+
+	public function handleServerPresenceInfo(ServerPresenceInfoPacket $packet) : bool;
 }

@@ -17,6 +17,7 @@ namespace pocketmine\network\mcpe\protocol\types;
 use pocketmine\color\Color;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\PrimitiveShapesPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\ServerScriptDebugDrawerPacket;
@@ -42,6 +43,12 @@ final class PacketShapeData{
 		private ?int $segments,
 		private ?int $dimensionId = null,
 		private ?int $attachedToEntityId = null,
+		private ?float $maximumRenderDistance = null,
+		private ?bool $useRotation = null,
+		private ?Color $backgroundColor = null,
+		private ?bool $depthTest = null,
+		private ?bool $showBackface = null,
+		private ?bool $showTextBackface = null,
 	){}
 
 	public static function remove(int $networkId) : self{
@@ -168,11 +175,23 @@ final class PacketShapeData{
 
 	public function getTotalTimeLeft() : ?float{ return $this->totalTimeLeft; }
 
+	public function getMaximumRenderDistance() : ?float{ return $this->maximumRenderDistance; }
+
 	public function getColor() : ?Color{ return $this->color; }
 
 	public function getDimensionId() : ?int{ return $this->dimensionId; }
 
 	public function getText() : ?string{ return $this->text; }
+
+	public function getUseRotation() : ?bool{ return $this->useRotation; }
+
+	public function getBackgroundColor() : ?Color{ return $this->backgroundColor; }
+
+	public function getDepthTest() : ?bool{ return $this->depthTest; }
+
+	public function getShowBackface() : ?bool{ return $this->showBackface; }
+
+	public function getShowTextBackface() : ?bool{ return $this->showTextBackface; }
 
 	public function getBoxBound() : ?Vector3{ return $this->boxBound; }
 
@@ -193,8 +212,14 @@ final class PacketShapeData{
 		$scale = $in->readOptional($in->getLFloat(...));
 		$rotation = $in->readOptional($in->getVector3(...));
 		$totalTimeLeft = $in->readOptional($in->getLFloat(...));
+		$maximumRenderDistance = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20 ? $in->readOptional($in->getLFloat(...)) : null;
 		$color = $in->readOptional(fn() => Color::fromARGB($in->getLInt()));
 		$text = null;
+		$useRotation = null;
+		$backgroundColor = null;
+		$depthTest = null;
+		$showBackface = null;
+		$showTextBackface = null;
 		$boxBound = null;
 		$lineEndLocation = null;
 		$arrowHeadLength = null;
@@ -226,6 +251,13 @@ final class PacketShapeData{
 					break;
 				case ScriptDebugShapeType::PAYLOAD_TYPE_TEXT:
 					$text = $in->getString();
+					if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+						$useRotation = $in->getBool();
+						$backgroundColor = $in->readOptional(fn() => Color::fromARGB($in->getLInt()));
+						$depthTest = $in->getBool();
+						$showBackface = $in->getBool();
+						$showTextBackface = $in->getBool();
+					}
 					break;
 				case ScriptDebugShapeType::PAYLOAD_TYPE_BOX:
 					$boxBound = $in->getVector3();
@@ -265,7 +297,13 @@ final class PacketShapeData{
 			$arrowHeadRadius,
 			$segments,
 			$dimensionId,
-			$attachedToEntityId
+			$attachedToEntityId,
+			$maximumRenderDistance,
+			$useRotation,
+			$backgroundColor,
+			$depthTest,
+			$showBackface,
+			$showTextBackface
 		);
 	}
 
@@ -276,6 +314,9 @@ final class PacketShapeData{
 		$out->writeOptional($this->scale, $out->putLFloat(...));
 		$out->writeOptional($this->rotation, $out->putVector3(...));
 		$out->writeOptional($this->totalTimeLeft, $out->putLFloat(...));
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$out->writeOptional($this->maximumRenderDistance, $out->putLFloat(...));
+		}
 		$out->writeOptional($this->color, fn(Color $color) => $out->putLInt($color->toARGB()));
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_120){
 			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_0){
@@ -299,6 +340,13 @@ final class PacketShapeData{
 						if($this->text !== null){
 							$out->putUnsignedVarInt($this->type->getPayloadType());
 							$out->putString($this->text);
+							if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+								$out->putBool($this->useRotation ?? false);
+								$out->writeOptional($this->backgroundColor, fn(Color $color) => $out->putLInt($color->toARGB()));
+								$out->putBool($this->depthTest ?? true);
+								$out->putBool($this->showBackface ?? true);
+								$out->putBool($this->showTextBackface ?? true);
+							}
 						}else{
 							$out->putUnsignedVarInt(ScriptDebugShapeType::PAYLOAD_TYPE_NONE);
 						}

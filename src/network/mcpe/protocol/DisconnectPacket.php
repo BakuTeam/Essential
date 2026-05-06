@@ -42,10 +42,16 @@ class DisconnectPacket extends DataPacket implements ClientboundPacket, Serverbo
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_40){
 			$this->reason = $in->getVarInt();
 		}
-		$skipMessage = $in->getBool();
-		$this->message = $skipMessage ? null : $in->getString();
+
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$type = $in->getUnsignedVarInt();
+		}else{
+			$type = $in->getBool() ? 1 : 0;
+		}
+
+		$this->message = $type === 0 ? $in->getString() : null;
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20){
-			$this->filteredMessage = $skipMessage ? null : $in->getString();
+			$this->filteredMessage = $type === 0 ? $in->getString() : null;
 		}
 	}
 
@@ -53,7 +59,13 @@ class DisconnectPacket extends DataPacket implements ClientboundPacket, Serverbo
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_40){
 			$out->putVarInt($this->reason);
 		}
-		$out->putBool($skipMessage = $this->message === null && $this->filteredMessage === null);
+		$skipMessage = $this->message === null && $this->filteredMessage === null;
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$out->putUnsignedVarInt($skipMessage ? 1 : 0);
+		}else{
+			$out->putBool($skipMessage);
+		}
+
 		if(!$skipMessage){
 			$out->putString($this->message ?? "");
 			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20){

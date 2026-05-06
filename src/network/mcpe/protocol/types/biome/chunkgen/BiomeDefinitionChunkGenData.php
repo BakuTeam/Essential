@@ -37,6 +37,8 @@ final class BiomeDefinitionChunkGenData{
 		private ?array $replacementsData,
 		private bool $defaultOverworldSurface = false,
 		private ?int $villageType = null,
+		private ?BiomeSurfaceBuilderData $surfaceBuilderData = null,
+		private ?BiomeSurfaceBuilderData $subSurfaceBuilderData = null,
 	){}
 
 	public function getClimate() : ?BiomeClimateData{ return $this->climate; }
@@ -74,20 +76,33 @@ final class BiomeDefinitionChunkGenData{
 
 	public function getVillageType() : ?int{ return $this->villageType; }
 
+	public function getSurfaceBuilderData() : ?BiomeSurfaceBuilderData{ return $this->surfaceBuilderData; }
+
+	public function getSubSurfaceBuilderData() : ?BiomeSurfaceBuilderData{ return $this->subSurfaceBuilderData; }
+
 	public static function read(PacketSerializer $in) : self{
 		$climate = $in->readOptional(fn() => BiomeClimateData::read($in));
 		$consolidatedFeatures = $in->readOptional(fn() => BiomeConsolidatedFeaturesData::read($in));
 		$mountainParams = $in->readOptional(fn() => BiomeMountainParamsData::read($in));
 		$surfaceMaterialAdjustment = $in->readOptional(fn() => BiomeSurfaceMaterialAdjustmentData::read($in));
-		$surfaceMaterial = $in->readOptional(fn() => BiomeSurfaceMaterialData::read($in));
-		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_111){
-			$defaultOverworldSurface = $in->getBool();
+		if($in->getProtocolId() <= ProtocolInfo::PROTOCOL_1_26_10){
+			$surfaceMaterial = $in->readOptional(fn() => BiomeSurfaceMaterialData::read($in));
+			$defaultOverworldSurface = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_110 ? $in->getBool() : false;
+			$swampSurface = $in->getBool();
+			$frozenOceanSurface = $in->getBool();
+			$theEndSurface = $in->getBool();
+			$mesaSurface = $in->readOptional(fn() => BiomeMesaSurfaceData::read($in));
+			$cappedSurface = $in->readOptional(fn() => BiomeCappedSurfaceData::read($in));
+			$surfaceBuilderData = new BiomeSurfaceBuilderData($surfaceMaterial, $defaultOverworldSurface, $swampSurface, $frozenOceanSurface, $theEndSurface, $mesaSurface, $cappedSurface, null);
+		}else{
+			$surfaceMaterial = null;
+			$defaultOverworldSurface = false;
+			$swampSurface = false;
+			$frozenOceanSurface = false;
+			$theEndSurface = false;
+			$mesaSurface = null;
+			$cappedSurface = null;
 		}
-		$swampSurface = $in->getBool();
-		$frozenOceanSurface = $in->getBool();
-		$theEndSurface = $in->getBool();
-		$mesaSurface = $in->readOptional(fn() => BiomeMesaSurfaceData::read($in));
-		$cappedSurface = $in->readOptional(fn() => BiomeCappedSurfaceData::read($in));
 		$overworldGenRules = $in->readOptional(fn() => BiomeOverworldGenRulesData::read($in));
 		$multinoiseGenRules = $in->readOptional(fn() => BiomeMultinoiseGenRulesData::read($in));
 		$legacyWorldGenRules = $in->readOptional(fn() => BiomeLegacyWorldGenRulesData::read($in));
@@ -103,6 +118,19 @@ final class BiomeDefinitionChunkGenData{
 			});
 			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_0){
 				$villageType = $in->readOptional($in->getByte(...));
+				if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+					$surfaceBuilderData = $in->readOptional(fn() => BiomeSurfaceBuilderData::read($in));
+					$subSurfaceBuilderData = $in->readOptional(fn() => BiomeSurfaceBuilderData::read($in));
+					if($surfaceBuilderData !== null){
+						$surfaceMaterial = $surfaceBuilderData->getSurfaceMaterial();
+						$defaultOverworldSurface = $surfaceBuilderData->hasDefaultOverworldSurface();
+						$swampSurface = $surfaceBuilderData->hasSwampSurface();
+						$frozenOceanSurface = $surfaceBuilderData->hasFrozenOceanSurface();
+						$theEndSurface = $surfaceBuilderData->hasTheEndSurface();
+						$mesaSurface = $surfaceBuilderData->getMesaSurface();
+						$cappedSurface = $surfaceBuilderData->getCappedSurface();
+					}
+				}
 			}
 		}
 
@@ -122,7 +150,9 @@ final class BiomeDefinitionChunkGenData{
 			$legacyWorldGenRules,
 			$replacementsData ?? null,
 			$defaultOverworldSurface ?? false,
-			$villageType ?? null
+			$villageType ?? null,
+			$surfaceBuilderData ?? null,
+			$subSurfaceBuilderData ?? null
 		);
 	}
 
@@ -131,15 +161,17 @@ final class BiomeDefinitionChunkGenData{
 		$out->writeOptional($this->consolidatedFeatures, fn(BiomeConsolidatedFeaturesData $consolidatedFeatures) => $consolidatedFeatures->write($out));
 		$out->writeOptional($this->mountainParams, fn(BiomeMountainParamsData $mountainParams) => $mountainParams->write($out));
 		$out->writeOptional($this->surfaceMaterialAdjustment, fn(BiomeSurfaceMaterialAdjustmentData $surfaceMaterialAdjustment) => $surfaceMaterialAdjustment->write($out));
-		$out->writeOptional($this->surfaceMaterial, fn(BiomeSurfaceMaterialData $surfaceMaterial) => $surfaceMaterial->write($out));
-		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_111){
-			$out->putBool($this->defaultOverworldSurface);
+		if($out->getProtocolId() <= ProtocolInfo::PROTOCOL_1_26_10){
+			$out->writeOptional($this->surfaceMaterial, fn(BiomeSurfaceMaterialData $surfaceMaterial) => $surfaceMaterial->write($out));
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_110){
+				$out->putBool($this->defaultOverworldSurface);
+			}
+			$out->putBool($this->swampSurface);
+			$out->putBool($this->frozenOceanSurface);
+			$out->putBool($this->theEndSurface);
+			$out->writeOptional($this->mesaSurface, fn(BiomeMesaSurfaceData $mesaSurface) => $mesaSurface->write($out));
+			$out->writeOptional($this->cappedSurface, fn(BiomeCappedSurfaceData $cappedSurface) => $cappedSurface->write($out));
 		}
-		$out->putBool($this->swampSurface);
-		$out->putBool($this->frozenOceanSurface);
-		$out->putBool($this->theEndSurface);
-		$out->writeOptional($this->mesaSurface, fn(BiomeMesaSurfaceData $mesaSurface) => $mesaSurface->write($out));
-		$out->writeOptional($this->cappedSurface, fn(BiomeCappedSurfaceData $cappedSurface) => $cappedSurface->write($out));
 		$out->writeOptional($this->overworldGenRules, fn(BiomeOverworldGenRulesData $overworldGenRules) => $overworldGenRules->write($out));
 		$out->writeOptional($this->multinoiseGenRules, fn(BiomeMultinoiseGenRulesData $multinoiseGenRules) => $multinoiseGenRules->write($out));
 		$out->writeOptional($this->legacyWorldGenRules, fn(BiomeLegacyWorldGenRulesData $legacyWorldGenRules) => $legacyWorldGenRules->write($out));
@@ -153,6 +185,22 @@ final class BiomeDefinitionChunkGenData{
 			});
 			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_0){
 				$out->writeOptional($this->villageType, $out->putByte(...));
+				if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+					$surfaceBuilderData = $this->surfaceBuilderData;
+					if($surfaceBuilderData === null && (
+						$this->surfaceMaterial !== null ||
+						$this->defaultOverworldSurface ||
+						$this->swampSurface ||
+						$this->frozenOceanSurface ||
+						$this->theEndSurface ||
+						$this->mesaSurface !== null ||
+						$this->cappedSurface !== null
+					)){
+						$surfaceBuilderData = new BiomeSurfaceBuilderData($this->surfaceMaterial, $this->defaultOverworldSurface, $this->swampSurface, $this->frozenOceanSurface, $this->theEndSurface, $this->mesaSurface, $this->cappedSurface, null);
+					}
+					$out->writeOptional($surfaceBuilderData, fn(BiomeSurfaceBuilderData $v) => $v->write($out));
+					$out->writeOptional($this->subSurfaceBuilderData, fn(BiomeSurfaceBuilderData $v) => $v->write($out));
+				}
 			}
 		}
 	}

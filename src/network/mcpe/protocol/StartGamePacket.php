@@ -222,7 +222,7 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 			$this->networkPermissions = NetworkPermissions::decode($in);
 		}
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_0){
-			$this->serverJoinInformation = $in->readOptional(fn() => ServerJoinInformation::read($in));
+			$this->serverJoinInformation = $in->readOptional(fn() => ServerJoinInformation::read($in, $in->getProtocolId()));
 			$this->serverTelemetryData = ServerTelemetryData::read($in);
 		}
 	}
@@ -294,7 +294,7 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 			$this->networkPermissions->encode($out);
 		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_0){
-			$out->writeOptional($this->serverJoinInformation, fn(ServerJoinInformation $info) => $info->write($out));
+			$out->writeOptional($this->serverJoinInformation, fn(ServerJoinInformation $info) => $info->write($out, $out->getProtocolId()));
 			$this->serverTelemetryData->write($out);
 		}
 	}

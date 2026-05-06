@@ -441,19 +441,12 @@ class InventoryManager{
 	 * client-provided NBT is consistently sorted.
 	 */
 	private function itemStackExtraDataEqual(ItemStack $left, ItemStack $right) : bool{
-		if($left->getRawExtraData() === $right->getRawExtraData()){
-			return true;
-		}
-
-		$typeConverter = $this->session->getTypeConverter();
-		$leftExtraData = $typeConverter->deserializeItemStackExtraData($left->getRawExtraData(), $left->getId());
-		$rightExtraData = $typeConverter->deserializeItemStackExtraData($right->getRawExtraData(), $right->getId());
-
-		$leftNbt = $leftExtraData->getNbt();
-		$rightNbt = $rightExtraData->getNbt();
+		$leftNbt = $left->getNbt();
+		$rightNbt = $right->getNbt();
 		return
-			$leftExtraData->getCanPlaceOn() === $rightExtraData->getCanPlaceOn() &&
-			$leftExtraData->getCanDestroy() === $rightExtraData->getCanDestroy() && (
+			$left->getCanPlaceOn() === $right->getCanPlaceOn() &&
+			$left->getCanDestroy() === $right->getCanDestroy() &&
+			$left->getShieldBlockingTick() === $right->getShieldBlockingTick() && (
 				$leftNbt === $rightNbt || //this covers null === null and fast object identity
 				($leftNbt !== null && $rightNbt !== null && $leftNbt->equals($rightNbt))
 			);
@@ -465,9 +458,7 @@ class InventoryManager{
 			$left->getMeta() === $right->getMeta() &&
 			$left->getBlockRuntimeId() === $right->getBlockRuntimeId() &&
 			$left->getCount() === $right->getCount() &&
-			$left->getNbt() === $right->getNbt() &&
-			$left->getCanDestroy() === $right->getCanDestroy() &&
-			$left->getCanPlaceOn() === $right->getCanPlaceOn();
+			$this->itemStackExtraDataEqual($left, $right);
 	}
 
 	public function onSlotChange(Inventory $inventory, int $slot) : void{

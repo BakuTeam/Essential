@@ -852,9 +852,9 @@ class Server{
 			$this->dataPath = realpath($dataPath) . DIRECTORY_SEPARATOR;
 			$this->pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
 
-			$pocketmineYmlPath = Path::join($this->dataPath, "dummy.yml");
+			$pocketmineYmlPath = Path::join($this->dataPath, "quadrium.yml");
 			if(!file_exists($pocketmineYmlPath)){
-				$content = Filesystem::fileGetContents(Path::join(\pocketmine\RESOURCE_PATH, "dummy.yml"));
+				$content = Filesystem::fileGetContents(Path::join(\pocketmine\RESOURCE_PATH, "quadrium.yml"));
 				@file_put_contents($pocketmineYmlPath, $content);
 			}
 

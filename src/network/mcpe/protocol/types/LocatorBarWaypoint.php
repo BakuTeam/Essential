@@ -15,6 +15,8 @@ declare(strict_types=1);
 namespace pocketmine\network\mcpe\protocol\types;
 
 use pocketmine\color\Color;
+use pocketmine\math\Vector2;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 
 final class LocatorBarWaypoint{
@@ -25,7 +27,9 @@ final class LocatorBarWaypoint{
 		private ?int $textureId,
 		private ?Color $color,
 		private ?bool $clientPositionAuthority,
-		private ?int $actorUniqueId
+		private ?int $actorUniqueId,
+		private ?string $texturePath = null,
+		private ?Vector2 $iconSize = null
 	){}
 
 	public function getUpdateFlag() : int{ return $this->updateFlag; }
@@ -36,29 +40,58 @@ final class LocatorBarWaypoint{
 
 	public function getTextureId() : ?int{ return $this->textureId; }
 
+	public function getTexturePath() : ?string{ return $this->texturePath; }
+
+	public function getIconSize() : ?Vector2{ return $this->iconSize; }
+
 	public function getColor() : ?Color{ return $this->color; }
 
 	public function getClientPositionAuthority() : ?bool{ return $this->clientPositionAuthority; }
 
 	public function getActorUniqueId() : ?int{ return $this->actorUniqueId; }
 
-	public static function read(PacketSerializer $in) : self{
+	public static function read(PacketSerializer $in, ?int $protocolId = null) : self{
+		$protocolId ??= $in->getProtocolId();
+		$updateFlag = $in->getLInt();
+		$visible = $in->readOptional($in->getBool(...));
+		$worldPosition = $in->readOptional(fn() => WorldPosition::read($in));
+		if($protocolId >= ProtocolInfo::PROTOCOL_1_26_20){
+			$texturePath = $in->readOptional($in->getString(...));
+			$iconSize = $in->readOptional($in->getVector2(...));
+			$textureId = null;
+		}else{
+			$textureId = $in->readOptional($in->getLInt(...));
+			$texturePath = null;
+			$iconSize = null;
+		}
+		$color = $in->readOptional(fn() => Color::fromARGB($in->getLInt()));
+		$clientPositionAuthority = $in->readOptional($in->getBool(...));
+		$actorUniqueId = $in->readOptional($in->getActorUniqueId(...));
+
 		return new self(
-			$in->getLInt(),
-			$in->readOptional(fn() => $in->getBool()),
-			$in->readOptional(fn() => WorldPosition::read($in)),
-			$in->readOptional(fn() => $in->getLInt()),
-			$in->readOptional(fn() => Color::fromARGB($in->getLInt())),
-			$in->readOptional(fn() => $in->getBool()),
-			$in->readOptional(fn() => $in->getActorUniqueId())
+			$updateFlag,
+			$visible,
+			$worldPosition,
+			$textureId,
+			$color,
+			$clientPositionAuthority,
+			$actorUniqueId,
+			$texturePath,
+			$iconSize
 		);
 	}
 
-	public function write(PacketSerializer $out) : void{
+	public function write(PacketSerializer $out, ?int $protocolId = null) : void{
+		$protocolId ??= $out->getProtocolId();
 		$out->putLInt($this->updateFlag);
 		$out->writeOptional($this->visible, fn(bool $v) => $out->putBool($v));
 		$out->writeOptional($this->worldPosition, fn(WorldPosition $v) => $v->write($out));
-		$out->writeOptional($this->textureId, fn(int $v) => $out->putLInt($v));
+		if($protocolId >= ProtocolInfo::PROTOCOL_1_26_20){
+			$out->writeOptional($this->texturePath, $out->putString(...));
+			$out->writeOptional($this->iconSize, $out->putVector2(...));
+		}else{
+			$out->writeOptional($this->textureId, fn(int $v) => $out->putLInt($v));
+		}
 		$out->writeOptional($this->color, fn(Color $v) => $out->putLInt($v->toARGB()));
 		$out->writeOptional($this->clientPositionAuthority, fn(bool $v) => $out->putBool($v));
 		$out->writeOptional($this->actorUniqueId, fn(int $v) => $out->putActorUniqueId($v));

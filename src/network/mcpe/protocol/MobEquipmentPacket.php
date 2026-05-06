@@ -42,7 +42,9 @@ class MobEquipmentPacket extends DataPacket implements ClientboundPacket, Server
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->actorRuntimeId = $in->getActorRuntimeId();
 
-		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$this->item = $in->getNetworkItemStackDescriptor();
+		}elseif($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
 			$this->item = ItemStackWrapper::read($in);
 		}else{
 			$this->item = ItemStackWrapper::legacy($in->getItemStackWithoutStackId());
@@ -56,7 +58,9 @@ class MobEquipmentPacket extends DataPacket implements ClientboundPacket, Server
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putActorRuntimeId($this->actorRuntimeId);
 
-		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+			$out->putNetworkItemStackDescriptor($this->item);
+		}elseif($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
 			$this->item->write($out);
 		}else{
 			$out->putItemStackWithoutStackId($this->item->getItemStack());

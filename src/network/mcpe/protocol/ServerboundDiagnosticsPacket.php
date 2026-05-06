@@ -15,7 +15,9 @@ declare(strict_types=1);
 namespace pocketmine\network\mcpe\protocol;
 
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
+use pocketmine\network\mcpe\protocol\types\EntityDiagnosticTimingInfo;
 use pocketmine\network\mcpe\protocol\types\MemoryCategoryCounter;
+use pocketmine\network\mcpe\protocol\types\SystemDiagnosticTimingInfo;
 use function count;
 
 class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPacket{
@@ -35,6 +37,16 @@ class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPack
 	 * @phpstan-var list<MemoryCategoryCounter>
 	 */
 	private array $memoryCategoryValues = [];
+	/**
+	 * @var EntityDiagnosticTimingInfo[]
+	 * @phpstan-var list<EntityDiagnosticTimingInfo>
+	 */
+	private array $entityDiagnostics = [];
+	/**
+	 * @var SystemDiagnosticTimingInfo[]
+	 * @phpstan-var list<SystemDiagnosticTimingInfo>
+	 */
+	private array $systemDiagnostics = [];
 
 	/**
 	 * @generate-create-func
@@ -50,6 +62,8 @@ class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPack
 		float $avgRemainderTimePercent,
 		float $avgUnaccountedTimePercent,
 		array $memoryCategoryValues = [],
+		array $entityDiagnostics = [],
+		array $systemDiagnostics = [],
 	) : self{
 		$result = new self;
 		$result->avgFps = $avgFps;
@@ -62,6 +76,8 @@ class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPack
 		$result->avgRemainderTimePercent = $avgRemainderTimePercent;
 		$result->avgUnaccountedTimePercent = $avgUnaccountedTimePercent;
 		$result->memoryCategoryValues = $memoryCategoryValues;
+		$result->entityDiagnostics = $entityDiagnostics;
+		$result->systemDiagnostics = $systemDiagnostics;
 		return $result;
 	}
 
@@ -89,6 +105,18 @@ class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPack
 	 */
 	public function getMemoryCategoryValues() : array{ return $this->memoryCategoryValues; }
 
+	/**
+	 * @return EntityDiagnosticTimingInfo[]
+	 * @phpstan-return list<EntityDiagnosticTimingInfo>
+	 */
+	public function getEntityDiagnostics() : array{ return $this->entityDiagnostics; }
+
+	/**
+	 * @return SystemDiagnosticTimingInfo[]
+	 * @phpstan-return list<SystemDiagnosticTimingInfo>
+	 */
+	public function getSystemDiagnostics() : array{ return $this->systemDiagnostics; }
+
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->avgFps = $in->getLFloat();
 		$this->avgServerSimTickTimeMS = $in->getLFloat();
@@ -103,6 +131,17 @@ class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPack
 			$this->memoryCategoryValues = [];
 			for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
 				$this->memoryCategoryValues[] = MemoryCategoryCounter::read($in);
+			}
+			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+				$this->entityDiagnostics = [];
+				for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+					$this->entityDiagnostics[] = EntityDiagnosticTimingInfo::read($in);
+				}
+
+				$this->systemDiagnostics = [];
+				for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+					$this->systemDiagnostics[] = SystemDiagnosticTimingInfo::read($in);
+				}
 			}
 		}
 	}
@@ -121,6 +160,17 @@ class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPack
 			$out->putUnsignedVarInt(count($this->memoryCategoryValues));
 			foreach($this->memoryCategoryValues as $value){
 				$value->write($out);
+			}
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
+				$out->putUnsignedVarInt(count($this->entityDiagnostics));
+				foreach($this->entityDiagnostics as $value){
+					$value->write($out);
+				}
+
+				$out->putUnsignedVarInt(count($this->systemDiagnostics));
+				foreach($this->systemDiagnostics as $value){
+					$value->write($out);
+				}
 			}
 		}
 	}

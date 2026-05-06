@@ -27,6 +27,7 @@ use DaveRandom\CallbackValidator\BuiltInTypes;
 use DaveRandom\CallbackValidator\CallbackType;
 use DaveRandom\CallbackValidator\ParameterType;
 use DaveRandom\CallbackValidator\ReturnType;
+use pocketmine\block\tile\Container;
 use pocketmine\block\VanillaBlocks;
 use pocketmine\crafting\ExactRecipeIngredient;
 use pocketmine\crafting\MetaWildcardRecipeIngredient;
@@ -35,10 +36,17 @@ use pocketmine\crafting\TagWildcardRecipeIngredient;
 use pocketmine\data\bedrock\item\BlockItemIdMap;
 use pocketmine\data\bedrock\item\downgrade\ItemIdMetaDowngrader;
 use pocketmine\data\bedrock\item\ItemTypeNames;
+use pocketmine\data\SavedDataLoadingException;
 use pocketmine\item\Item;
 use pocketmine\item\VanillaItems;
+use pocketmine\nbt\LittleEndianNbtSerializer;
+use pocketmine\nbt\NBT;
 use pocketmine\nbt\NbtException;
+use pocketmine\nbt\UnexpectedTagTypeException;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\ListTag;
+use pocketmine\nbt\tag\Tag;
+use pocketmine\nbt\TreeRoot;
 use pocketmine\network\mcpe\NetworkBroadcastUtils;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
@@ -60,6 +68,7 @@ use pocketmine\utils\Utils;
 use pocketmine\world\format\io\GlobalItemDataHandlers;
 use function count;
 use function get_class;
+use function hash;
 use function spl_object_id;
 
 class TypeConverter{
@@ -68,6 +77,7 @@ class TypeConverter{
 	}
 
 	private const PM_ID_TAG = "___Id___";
+	private const PM_FULL_NBT_HASH_TAG = "___FullNbtHash___";
 
 	private const RECIPE_INPUT_WILDCARD_META = 0x7fff;
 
@@ -214,6 +224,70 @@ class TypeConverter{
 		return new ExactRecipeIngredient($result);
 	}
 
+	/**
+	 * Strips block actor NBT which is invisible to the client and can become very large.
+	 */
+	protected function stripBlockEntityNBT(CompoundTag $tag) : bool{
+		if($tag->getTag(Item::TAG_BLOCK_ENTITY_TAG) !== null){
+			$tag->removeTag(Item::TAG_BLOCK_ENTITY_TAG);
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Keeps only visual data from nested container items before sending them to clients.
+	 */
+	protected function stripContainedItemNonVisualNBT(CompoundTag $tag) : bool{
+		try{
+			$blockEntityInventoryTag = $tag->getListTag(Container::TAG_ITEMS);
+		}catch(UnexpectedTagTypeException){
+			return false;
+		}
+		if($blockEntityInventoryTag === null || $blockEntityInventoryTag->getTagType() !== NBT::TAG_Compound || $blockEntityInventoryTag->count() === 0){
+			return false;
+		}
+
+		$stripped = new ListTag([], NBT::TAG_Compound);
+		foreach($blockEntityInventoryTag as $itemTag){
+			if(!$itemTag instanceof CompoundTag){
+				continue;
+			}
+			try{
+				$containedItem = Item::nbtDeserialize($itemTag);
+				$customName = $containedItem->getCustomName();
+				$containedItem->clearNamedTag();
+				$containedItem->setCustomName($customName);
+				$stripped->push($containedItem->nbtSerialize());
+			}catch(SavedDataLoadingException){
+				continue;
+			}
+		}
+
+		$tag->setTag(Container::TAG_ITEMS, $stripped);
+		return true;
+	}
+
+	protected function hashNBT(Tag $tag) : string{
+		return hash('sha256', (new LittleEndianNbtSerializer())->write(new TreeRoot($tag)), true);
+	}
+
+	protected function cleanupUnnecessaryItemNBT(CompoundTag $original) : CompoundTag{
+		$tag = clone $original;
+		$anythingStripped = false;
+		foreach([
+			$this->stripContainedItemNonVisualNBT($tag),
+			$this->stripBlockEntityNBT($tag)
+		] as $stripped){
+			$anythingStripped = $anythingStripped || $stripped;
+		}
+
+		if($anythingStripped){
+			$tag->setByteArray(self::PM_FULL_NBT_HASH_TAG, $this->hashNBT($original));
+		}
+		return $tag;
+	}
+
 	public function coreItemStackToNet(Item $itemStack) : ItemStack{
 		if($itemStack->isNull()){
 			return ItemStack::null();
@@ -222,7 +296,7 @@ class TypeConverter{
 		if($nbt->count() === 0){
 			$nbt = null;
 		}else{
-			$nbt = clone $nbt;
+			$nbt = $this->cleanupUnnecessaryItemNBT($nbt);
 		}
 
 		$idMeta = $this->itemTranslator->toNetworkIdQuiet($itemStack);
@@ -268,9 +342,7 @@ class TypeConverter{
 		if($itemStack->getId() === 0){
 			return VanillaItems::AIR();
 		}
-		$extraData = $this->deserializeItemStackExtraData($itemStack->getRawExtraData(), $itemStack->getId());
-
-		$compound = $extraData->getNbt();
+		$compound = $itemStack->getNbt();
 
 		$itemResult = $this->itemTranslator->fromNetworkId($itemStack->getId(), $itemStack->getMeta(), $itemStack->getBlockRuntimeId());
 

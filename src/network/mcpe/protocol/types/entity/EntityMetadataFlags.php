@@ -224,6 +224,9 @@ final class EntityMetadataFlags{
 		return $metadata;
 	}
 	public const BODY_ROTATION_ALWAYS_FOLLOWS_HEAD = 124;
+	public const CAN_USE_VERTICAL_MOVEMENT_ACTION = 125;
+	public const ROTATION_LOCKED_TO_VEHICLE = 126;
+	public const USES_LEGACY_FRICTION = 127;
 
-	public const NUMBER_OF_FLAGS = 125;
+	public const NUMBER_OF_FLAGS = 128;
 }

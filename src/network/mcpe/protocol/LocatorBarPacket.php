@@ -47,14 +47,14 @@ class LocatorBarPacket extends DataPacket{
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->waypoints = [];
 		for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
-			$this->waypoints[] = LocatorBarWaypointPayload::read($in);
+			$this->waypoints[] = LocatorBarWaypointPayload::read($in, $in->getProtocolId());
 		}
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putUnsignedVarInt(count($this->waypoints));
 		foreach($this->waypoints as $waypoint){
-			$waypoint->write($out);
+			$waypoint->write($out, $out->getProtocolId());
 		}
 	}
 

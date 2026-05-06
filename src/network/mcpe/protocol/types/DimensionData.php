@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types;
 
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 
 final class DimensionData{
@@ -21,7 +22,8 @@ final class DimensionData{
 	public function __construct(
 		private int $maxHeight,
 		private int $minHeight,
-		private int $generator
+		private int $generator,
+		private int $dimensionType = DimensionIds::OVERWORLD
 	){}
 
 	public function getMaxHeight() : int{ return $this->maxHeight; }
@@ -30,17 +32,27 @@ final class DimensionData{
 
 	public function getGenerator() : int{ return $this->generator; }
 
-	public static function read(PacketSerializer $in) : self{
+	public function getDimensionType() : int{ return $this->dimensionType; }
+
+	public static function read(PacketSerializer $in, ?int $protocolId = null) : self{
+		$protocolId ??= $in->getProtocolId();
 		$maxHeight = $in->getVarInt();
 		$minHeight = $in->getVarInt();
 		$generator = $in->getVarInt();
+		if($protocolId >= ProtocolInfo::PROTOCOL_1_26_20){
+			$dimensionType = $in->getVarInt();
+		}
 
-		return new self($maxHeight, $minHeight, $generator);
+		return new self($maxHeight, $minHeight, $generator, $dimensionType ?? DimensionIds::OVERWORLD);
 	}
 
-	public function write(PacketSerializer $out) : void{
+	public function write(PacketSerializer $out, ?int $protocolId = null) : void{
+		$protocolId ??= $out->getProtocolId();
 		$out->putVarInt($this->maxHeight);
 		$out->putVarInt($this->minHeight);
 		$out->putVarInt($this->generator);
+		if($protocolId >= ProtocolInfo::PROTOCOL_1_26_20){
+			$out->putVarInt($this->dimensionType);
+		}
 	}
 }
