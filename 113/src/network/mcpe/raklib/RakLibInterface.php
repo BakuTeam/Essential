@@ -63,7 +63,10 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 	 * Sometimes this gets changed when the MCPE-layer protocol gets broken to the point where old and new can't
 	 * communicate. It's important that we check this to avoid catastrophes.
 	 */
-	private const MCPE_RAKNET_PROTOCOL_VERSION = 11;
+	private const MCPE_RAKNET_PROTOCOL_VERSION = 8;
+	private const MCBE_RAKNET_PROTOCOL_VERSION = 9;
+	private const MCBE_RAKNET_PROTOCOL_VERSION_WITH_RAW_ZLIB_ENCODING = 10;
+	private const MCBE_RAKNET_PROTOCOL_VERSION_WITHOUT_ZLIB_COMPRESSION = 11;
 
 	private const MCPE_RAKNET_PACKET_ID = "\xfe";
 
@@ -123,7 +126,7 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 			new InternetAddress($ip, $port, $ipV6 ? 6 : 4),
 			$this->rakServerId,
 			$this->server->getConfigGroup()->getPropertyInt(YmlServerProperties::NETWORK_MAX_MTU_SIZE, 1492),
-			self::MCPE_RAKNET_PROTOCOL_VERSION,
+			self::MCBE_RAKNET_PROTOCOL_VERSION_WITHOUT_ZLIB_COMPRESSION,
 			$sleeperEntry
 		);
 		$this->eventReceiver = new RakLibToUserThreadMessageReceiver(
