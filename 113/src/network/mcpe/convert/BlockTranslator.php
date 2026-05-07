@@ -45,7 +45,7 @@ final class BlockTranslator{
 
 	private const PATHS = [
 		ProtocolInfo::PROTOCOL_1_1_5 => [
-			self::CANONICAL_BLOCK_STATES_PATH => '-1.16.0',
+			self::CANONICAL_BLOCK_STATES_PATH => '-1.16.20',
 			self::BLOCK_STATE_META_MAP_PATH => '-1.19.10',
 		],
 		ProtocolInfo::CURRENT_PROTOCOL => [
@@ -249,7 +249,7 @@ final class BlockTranslator{
 			self::BLOCK_STATE_META_MAP_PATH => '-1.19.10',
 		],
 		ProtocolInfo::PROTOCOL_1_16_0 => [
-			self::CANONICAL_BLOCK_STATES_PATH => '-1.16.0',
+			self::CANONICAL_BLOCK_STATES_PATH => '-1.16.20',
 			self::BLOCK_STATE_META_MAP_PATH => '-1.19.10',
 		],
 	];

@@ -35,6 +35,18 @@ final class ClientDataToSkinDataHelper{
 		return $result;
 	}
 
+	private static function makeSkinImage(int $height, int $width, string $data, string $context) : SkinImage{
+		try{
+			return new SkinImage($height, $width, $data);
+		}catch(\InvalidArgumentException $e){
+			try{
+				return SkinImage::fromLegacy($data);
+			}catch(\InvalidArgumentException){
+				throw new \InvalidArgumentException("$context: " . $e->getMessage(), 0, $e);
+			}
+		}
+	}
+
 	/**
 	 * @throws \InvalidArgumentException
 	 */
@@ -42,24 +54,28 @@ final class ClientDataToSkinDataHelper{
 		/** @var SkinAnimation[] $animations */
 		$animations = [];
 		foreach($clientData->AnimatedImageData as $k => $animation){
+			$animationData = self::safeB64Decode($animation->Image, "AnimatedImageData.$k.Image");
 			$animations[] = new SkinAnimation(
-				new SkinImage(
+				self::makeSkinImage(
 					$animation->ImageHeight,
 					$animation->ImageWidth,
-					self::safeB64Decode($animation->Image, "AnimatedImageData.$k.Image")
+					$animationData,
+					"AnimatedImageData.$k.Image"
 				),
 				$animation->Type,
 				$animation->Frames,
 				$animation->AnimationExpression ?? 0
 			);
 		}
+		$skinData = self::safeB64Decode($clientData->SkinData, "SkinData");
+		$capeData = self::safeB64Decode($clientData->CapeData, "CapeData");
 		return new SkinData(
 			$clientData->SkinId,
 			$clientData->PlayFabId ?? "",
 			self::safeB64Decode($clientData->SkinResourcePatch, "SkinResourcePatch"),
-			new SkinImage($clientData->SkinImageHeight, $clientData->SkinImageWidth, self::safeB64Decode($clientData->SkinData, "SkinData")),
+			self::makeSkinImage($clientData->SkinImageHeight, $clientData->SkinImageWidth, $skinData, "SkinData"),
 			$animations,
-			new SkinImage($clientData->CapeImageHeight, $clientData->CapeImageWidth, self::safeB64Decode($clientData->CapeData, "CapeData")),
+			self::makeSkinImage($clientData->CapeImageHeight, $clientData->CapeImageWidth, $capeData, "CapeData"),
 			self::safeB64Decode($clientData->SkinGeometryData, "SkinGeometryData"),
 			self::safeB64Decode($clientData->SkinGeometryDataEngineVersion ?? "", "SkinGeometryDataEngineVersion"), //yes, they actually base64'd the version!
 			self::safeB64Decode($clientData->SkinAnimationData, "SkinAnimationData"),

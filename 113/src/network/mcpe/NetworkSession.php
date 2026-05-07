@@ -913,17 +913,17 @@ class NetworkSession{
         }, $reason);
     }
 
-    private function setAuthenticationStatus(bool $authenticated, bool $authRequired, Translatable|string|null $error, ?string $clientPubKey) : void{
-        if(!$this->connected){
-            return;
-        }
-        if($error === null){
-            if($authenticated && !($this->info instanceof XboxLivePlayerInfo)){
-                $error = "Expected XUID but none found";
-            }elseif($clientPubKey === null){
-                $error = "Missing client public key"; //failsafe
-            }
-        }
+	private function setAuthenticationStatus(bool $authenticated, bool $authRequired, Translatable|string|null $error, ?string $clientPubKey) : void{
+		if(!$this->connected){
+			return;
+		}
+		if($error === null){
+			if($authenticated && !($this->info instanceof XboxLivePlayerInfo) && $this->protocolId > ProtocolInfo::PROTOCOL_1_1_5){
+				$error = "Expected XUID but none found";
+			}elseif($clientPubKey === null){
+				$error = "Missing client public key"; //failsafe
+			}
+		}
 
         if($error !== null){
             $this->disconnectWithError(
