@@ -1,0 +1,471 @@
+<?php
+
+/*
+ *
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
+ */
+
+declare(strict_types=1);
+
+namespace pocketmine\network\mcpe\handler;
+
+use pocketmine\entity\InvalidSkinException;
+use pocketmine\event\player\PlayerPreLoginEvent;
+use pocketmine\lang\KnownTranslationFactory;
+use pocketmine\lang\Translatable;
+use pocketmine\network\mcpe\auth\ProcessLoginTask;
+use pocketmine\network\mcpe\JwtException;
+use pocketmine\network\mcpe\JwtUtils;
+use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\protocol\LoginPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\protocol\types\login\AuthenticationData;
+use pocketmine\network\mcpe\protocol\types\login\AuthenticationInfo;
+use pocketmine\network\mcpe\protocol\types\login\AuthenticationType;
+use pocketmine\network\mcpe\protocol\types\login\ClientData;
+use pocketmine\network\mcpe\protocol\types\login\ClientDataToSkinDataHelper;
+use pocketmine\network\mcpe\protocol\types\login\JwtChain;
+use pocketmine\network\PacketHandlingException;
+use pocketmine\player\Player;
+use pocketmine\player\PlayerInfo;
+use pocketmine\player\XboxLivePlayerInfo;
+use pocketmine\Server;
+use Ramsey\Uuid\Uuid;
+use Ramsey\Uuid\UuidInterface;
+use function base64_decode;
+use function base64_encode;
+use function chr;
+use function gettype;
+use function in_array;
+use function is_array;
+use function is_object;
+use function is_string;
+use function json_decode;
+use function md5;
+use function ord;
+use const JSON_THROW_ON_ERROR;
+
+/**
+ * Handles the initial login phase of the session. This handler is used as the initial state.
+ */
+class LoginPacketHandler extends PacketHandler{
+	/**
+	 * @phpstan-param \Closure(PlayerInfo) : void $playerInfoConsumer
+	 * @phpstan-param \Closure(bool $isAuthenticated, bool $authRequired, Translatable|string|null $error, ?string $clientPubKey) : void $authCallback
+	 */
+	public function __construct(
+		private Server $server,
+		private NetworkSession $session,
+		private \Closure $playerInfoConsumer,
+		private \Closure $authCallback
+	){}
+
+	private static function calculateUuidFromXuid(string $xuid) : UuidInterface{
+		$hash = md5("pocket-auth-1-xuid:" . $xuid, binary: true);
+		$hash[6] = chr((ord($hash[6]) & 0x0f) | 0x30); // set version to 3
+		$hash[8] = chr((ord($hash[8]) & 0x3f) | 0x80); // set variant to RFC 4122
+
+		return Uuid::fromBytes($hash);
+	}
+
+	public function handleLogin(LoginPacket $packet) : bool{
+		$protocolVersion = $packet->protocol;
+		if(!$this->isCompatibleProtocol($protocolVersion)){
+			$this->session->disconnectIncompatibleProtocol($protocolVersion);
+
+			return true;
+		}
+		$this->session->setProtocolId($protocolVersion);
+
+		if($protocolVersion >= ProtocolInfo::PROTOCOL_1_21_93){
+			$authInfo = $this->parseAuthInfo($packet->authInfoJson);
+			if($authInfo->AuthenticationType === AuthenticationType::FULL->value){
+				return $this->handleOpenIdLogin($packet, $authInfo);
+			}
+			if($authInfo->AuthenticationType !== AuthenticationType::SELF_SIGNED->value){
+				throw new PacketHandlingException("Unsupported authentication type: $authInfo->AuthenticationType");
+			}
+			$jwtChain = $this->parseJwtChain($authInfo->Certificate);
+		}elseif($protocolVersion >= ProtocolInfo::PROTOCOL_1_21_90){
+			$authInfo = $this->parseAuthInfo($packet->authInfoJson);
+			$authInfo->AuthenticationType = AuthenticationType::SELF_SIGNED->value;
+			$jwtChain = $this->parseJwtChain($authInfo->Certificate);
+		}else{
+			$jwtChain = $this->parseJwtChain($packet->authInfoJson);
+		}
+
+		$extraData = $this->fetchAuthData($jwtChain);
+
+		if(!Player::isValidUserName($extraData->displayName)){
+			$this->session->disconnectWithError(KnownTranslationFactory::disconnectionScreen_invalidName());
+
+			return true;
+		}
+
+		$clientData = $this->parseClientData($packet->clientDataJwt);
+
+		//Mojang forgot to bump the protocol version when they changed protocol in 1.19.62. Check the game version instead.
+		if(preg_match('/^(\d+)\.(\d+)\.(\d+)/', $clientData->GameVersion, $matches) !== 1){
+			throw new PacketHandlingException("Invalid game version format, expected at least 3 digits");
+		}
+		$major = (int) $matches[1];
+		$minor = (int) $matches[2];
+		$patch = (int) $matches[3];
+		if($major === 1 && $minor === 19 && $patch === 62){
+			$this->session->setProtocolId(ProtocolInfo::PROTOCOL_1_19_63);
+		}
+
+		try{
+			$skin = $this->session->getTypeConverter()->getSkinAdapter()->fromSkinData(ClientDataToSkinDataHelper::fromClientData($clientData));
+		}catch(\InvalidArgumentException | InvalidSkinException $e){
+			$this->session->disconnectWithError(
+				reason: "Invalid skin: " . $e->getMessage(),
+				disconnectScreenMessage: KnownTranslationFactory::disconnectionScreen_invalidSkin()
+			);
+
+			return true;
+		}
+
+		if(!Uuid::isValid($extraData->identity)){
+			throw new PacketHandlingException("Invalid login UUID");
+		}
+		$uuid = Uuid::fromString($extraData->identity);
+		$arrClientData = (array) $clientData;
+		$arrClientData["TitleID"] = $extraData->titleId ?? "";
+
+		if($extraData->XUID !== ""){
+			$playerInfo = new XboxLivePlayerInfo(
+				$extraData->XUID,
+				$extraData->displayName,
+				$uuid,
+				$skin,
+				$clientData->LanguageCode,
+				$arrClientData
+			);
+		}else{
+			$playerInfo = new PlayerInfo(
+				$extraData->displayName,
+				$uuid,
+				$skin,
+				$clientData->LanguageCode,
+				$arrClientData
+			);
+		}
+		($this->playerInfoConsumer)($playerInfo);
+
+		$ev = new PlayerPreLoginEvent(
+			$playerInfo,
+			$this->session,
+			$this->server->requiresAuthentication()
+		);
+		if($this->server->getNetwork()->getValidConnectionCount() > $this->server->getMaxPlayers()){
+			$ev->setKickFlag(PlayerPreLoginEvent::KICK_FLAG_SERVER_FULL, KnownTranslationFactory::disconnectionScreen_serverFull());
+		}
+		if(!$this->server->isWhitelisted($playerInfo->getUsername())){
+			$ev->setKickFlag(PlayerPreLoginEvent::KICK_FLAG_SERVER_WHITELISTED, KnownTranslationFactory::pocketmine_disconnect_whitelisted());
+		}
+
+		$banMessage = null;
+		if(($banEntry = $this->server->getNameBans()->getEntry($playerInfo->getUsername())) !== null){
+			$banReason = $banEntry->getReason();
+			$banMessage = $banReason === "" ? KnownTranslationFactory::pocketmine_disconnect_ban_noReason() : KnownTranslationFactory::pocketmine_disconnect_ban($banReason);
+		}elseif(($banEntry = $this->server->getIPBans()->getEntry($this->session->getIp())) !== null){
+			$banReason = $banEntry->getReason();
+			$banMessage = KnownTranslationFactory::pocketmine_disconnect_ban($banReason !== "" ? $banReason : KnownTranslationFactory::pocketmine_disconnect_ban_ip());
+		}
+		if($banMessage !== null){
+			$ev->setKickFlag(PlayerPreLoginEvent::KICK_FLAG_BANNED, $banMessage);
+		}
+
+		$ev->call();
+		if(!$ev->isAllowed()){
+			$this->session->disconnect($ev->getFinalDisconnectReason(), $ev->getFinalDisconnectScreenMessage());
+			return true;
+		}
+
+		if(isset($authInfo)){
+			$this->processLogin($authInfo->Token, AuthenticationType::from($authInfo->AuthenticationType), $jwtChain->chain, $packet->clientDataJwt, $ev->isAuthRequired());
+		}else{
+			$this->processLogin(null, null, $jwtChain->chain, $packet->clientDataJwt, $ev->isAuthRequired());
+		}
+
+		return true;
+	}
+
+	private function handleOpenIdLogin(LoginPacket $packet, AuthenticationInfo $authInfo) : bool{
+		try{
+			[, $claims, ] = JwtUtils::parse($authInfo->Token);
+		}catch(JwtException $e){
+			throw PacketHandlingException::wrap($e, "Error parsing authentication token");
+		}
+
+		foreach(["xname", "xid", "cpk"] as $requiredClaim){
+			if(!isset($claims[$requiredClaim]) || !is_string($claims[$requiredClaim])){
+				throw new PacketHandlingException("Missing or invalid OpenID auth claim \"$requiredClaim\"");
+			}
+		}
+
+		$username = $claims["xname"];
+		$xuid = $claims["xid"];
+		$clientPublicKey = base64_decode($claims["cpk"], true);
+		if($clientPublicKey === false){
+			throw new PacketHandlingException("Invalid client public key: base64 error decoding");
+		}
+
+		if(!Player::isValidUserName($username)){
+			$this->session->disconnectWithError(KnownTranslationFactory::disconnectionScreen_invalidName());
+			return true;
+		}
+
+		$clientData = $this->parseClientData($packet->clientDataJwt);
+
+		try{
+			$skin = $this->session->getTypeConverter()->getSkinAdapter()->fromSkinData(ClientDataToSkinDataHelper::fromClientData($clientData));
+		}catch(\InvalidArgumentException | InvalidSkinException $e){
+			$this->session->disconnectWithError(
+				reason: "Invalid skin: " . $e->getMessage(),
+				disconnectScreenMessage: KnownTranslationFactory::disconnectionScreen_invalidSkin()
+			);
+
+			return true;
+		}
+
+		$arrClientData = (array) $clientData;
+		$arrClientData["TitleID"] = is_string($claims["tid"] ?? null) ? $claims["tid"] : "";
+		$playerInfo = new XboxLivePlayerInfo(
+			$xuid,
+			$username,
+			self::calculateUuidFromXuid($xuid),
+			$skin,
+			$clientData->LanguageCode,
+			$arrClientData
+		);
+		($this->playerInfoConsumer)($playerInfo);
+
+		$ev = new PlayerPreLoginEvent(
+			$playerInfo,
+			$this->session,
+			$this->server->requiresAuthentication()
+		);
+		if($this->server->getNetwork()->getValidConnectionCount() > $this->server->getMaxPlayers()){
+			$ev->setKickFlag(PlayerPreLoginEvent::KICK_FLAG_SERVER_FULL, KnownTranslationFactory::disconnectionScreen_serverFull());
+		}
+		if(!$this->server->isWhitelisted($playerInfo->getUsername())){
+			$ev->setKickFlag(PlayerPreLoginEvent::KICK_FLAG_SERVER_WHITELISTED, KnownTranslationFactory::pocketmine_disconnect_whitelisted());
+		}
+
+		$banMessage = null;
+		if(($banEntry = $this->server->getNameBans()->getEntry($playerInfo->getUsername())) !== null){
+			$banReason = $banEntry->getReason();
+			$banMessage = $banReason === "" ? KnownTranslationFactory::pocketmine_disconnect_ban_noReason() : KnownTranslationFactory::pocketmine_disconnect_ban($banReason);
+		}elseif(($banEntry = $this->server->getIPBans()->getEntry($this->session->getIp())) !== null){
+			$banReason = $banEntry->getReason();
+			$banMessage = KnownTranslationFactory::pocketmine_disconnect_ban($banReason !== "" ? $banReason : KnownTranslationFactory::pocketmine_disconnect_ban_ip());
+		}
+		if($banMessage !== null){
+			$ev->setKickFlag(PlayerPreLoginEvent::KICK_FLAG_BANNED, $banMessage);
+		}
+
+		$ev->call();
+		if(!$ev->isAllowed()){
+			$this->session->disconnect($ev->getFinalDisconnectReason(), $ev->getFinalDisconnectScreenMessage());
+			return true;
+		}
+
+		$this->session->setHandler(null); //drop packets received during login verification/encryption setup
+		($this->authCallback)(true, $ev->isAuthRequired(), null, $clientPublicKey);
+		return true;
+	}
+
+	/**
+	 * @throws PacketHandlingException
+	 */
+	protected function parseAuthInfo(string $authInfo) : AuthenticationInfo{
+		try{
+			$authInfoJson = json_decode($authInfo, associative: false, flags: JSON_THROW_ON_ERROR);
+		}catch(\JsonException $e){
+			throw PacketHandlingException::wrap($e);
+		}
+		if(!is_object($authInfoJson)){
+			throw new \RuntimeException("Unexpected type for auth info data: " . gettype($authInfoJson) . ", expected object");
+		}
+
+		$mapper = new \JsonMapper();
+		$mapper->bExceptionOnMissingData = true;
+		$mapper->bExceptionOnUndefinedProperty = true;
+		$mapper->bStrictObjectTypeChecking = true;
+		try{
+			$clientData = $mapper->map($authInfoJson, new AuthenticationInfo());
+		}catch(\JsonMapper_Exception $e){
+			throw PacketHandlingException::wrap($e);
+		}
+		return $clientData;
+	}
+
+	/**
+	 * @throws PacketHandlingException
+	 */
+	protected function parseJwtChain(string $chainDataJwt) : JwtChain{
+		try{
+			$jwtChainJson = json_decode($chainDataJwt, associative: false, flags: JSON_THROW_ON_ERROR);
+		}catch(\JsonException $e){
+			throw PacketHandlingException::wrap($e);
+		}
+		if(is_object($jwtChainJson) && isset($jwtChainJson->Certificate) && is_string($jwtChainJson->Certificate)){
+			try{
+				$jwtChainJson = json_decode($jwtChainJson->Certificate, associative: false, flags: JSON_THROW_ON_ERROR);
+			}catch(\JsonException $e){
+				throw PacketHandlingException::wrap($e, "Error parsing legacy login certificate");
+			}
+		}
+		if(!is_object($jwtChainJson)){
+			throw new \RuntimeException("Unexpected type for JWT chain data: " . gettype($jwtChainJson) . ", expected object");
+		}
+
+		$mapper = new \JsonMapper();
+		$mapper->bExceptionOnMissingData = true;
+		$mapper->bExceptionOnUndefinedProperty = true;
+		$mapper->bStrictObjectTypeChecking = true;
+		try{
+			$clientData = $mapper->map($jwtChainJson, new JwtChain());
+		}catch(\JsonMapper_Exception $e){
+			throw PacketHandlingException::wrap($e);
+		}
+		return $clientData;
+	}
+
+	/**
+	 * @throws PacketHandlingException
+	 */
+	protected function fetchAuthData(JwtChain $chain) : AuthenticationData{
+		/** @var AuthenticationData|null $extraData */
+		$extraData = null;
+		foreach($chain->chain as $jwt){
+			//validate every chain element
+			try{
+				[, $claims, ] = JwtUtils::parse($jwt);
+			}catch(JwtException $e){
+				throw PacketHandlingException::wrap($e);
+			}
+			if(isset($claims["extraData"])){
+				if($extraData !== null){
+					throw new PacketHandlingException("Found 'extraData' more than once in chainData");
+				}
+
+				if(!is_array($claims["extraData"])){
+					throw new PacketHandlingException("'extraData' key should be an array");
+				}
+				$claims["extraData"]["XUID"] ??= "";
+				$mapper = new \JsonMapper();
+				$mapper->bEnforceMapType = false; //TODO: we don't really need this as an array, but right now we don't have enough models
+				$mapper->bExceptionOnMissingData = true;
+				$mapper->bExceptionOnUndefinedProperty = true;
+				$mapper->bStrictObjectTypeChecking = true;
+				try{
+					/** @var AuthenticationData $extraData */
+					$extraData = $mapper->map($claims["extraData"], new AuthenticationData());
+				}catch(\JsonMapper_Exception $e){
+					throw PacketHandlingException::wrap($e);
+				}
+			}
+		}
+		if($extraData === null){
+			throw new PacketHandlingException("'extraData' not found in chain data");
+		}
+		return $extraData;
+	}
+
+	/**
+	 * @throws PacketHandlingException
+	 */
+	protected function parseClientData(string $clientDataJwt) : ClientData{
+		try{
+			[, $clientDataClaims, ] = JwtUtils::parse($clientDataJwt);
+		}catch(JwtException $e){
+			throw PacketHandlingException::wrap($e);
+		}
+		if($this->session->getProtocolId() <= ProtocolInfo::PROTOCOL_1_1_5){
+			$clientDataClaims["SkinGeometryData"] ??= $clientDataClaims["SkinGeometry"] ?? base64_encode("{}");
+			$clientDataClaims["SkinResourcePatch"] ??= base64_encode('{"geometry":{"default":"geometry.humanoid.custom"}}');
+			$clientDataClaims["SkinAnimationData"] ??= base64_encode("");
+			$clientDataClaims["AnimatedImageData"] ??= [];
+			$clientDataClaims["PersonaPieces"] ??= [];
+			$clientDataClaims["PieceTintColors"] ??= [];
+			$clientDataClaims["CapeData"] ??= base64_encode("");
+			$clientDataClaims["CapeId"] ??= "";
+			$clientDataClaims["CapeImageHeight"] ??= 0;
+			$clientDataClaims["CapeImageWidth"] ??= 0;
+			$clientDataClaims["CapeOnClassicSkin"] ??= false;
+			$clientDataClaims["ArmSize"] ??= "wide";
+			$clientDataClaims["SkinColor"] ??= "#0";
+			$clientDataClaims["PersonaSkin"] ??= false;
+			$clientDataClaims["PremiumSkin"] ??= false;
+			$clientDataClaims["PlatformOfflineId"] ??= "";
+			$clientDataClaims["PlatformOnlineId"] ??= "";
+			$clientDataClaims["ThirdPartyNameOnly"] ??= false;
+			$clientDataClaims["UIProfile"] ??= 0;
+			$clientDataClaims["CurrentInputMode"] ??= 0;
+			$clientDataClaims["DefaultInputMode"] ??= 0;
+			$clientDataClaims["DeviceId"] ??= "";
+			$clientDataClaims["DeviceModel"] ??= "";
+			$clientDataClaims["DeviceOS"] ??= 0;
+			$clientDataClaims["GuiScale"] ??= 0;
+			$clientDataClaims["LanguageCode"] ??= "en_US";
+			$clientDataClaims["GameVersion"] ??= "1.1.5";
+			$clientDataClaims["SelfSignedId"] ??= "";
+			$clientDataClaims["ServerAddress"] ??= "";
+			$clientDataClaims["SkinId"] ??= "";
+			$clientDataClaims["SkinImageHeight"] ??= 32;
+			$clientDataClaims["SkinImageWidth"] ??= 64;
+			$clientDataClaims["SkinData"] ??= base64_encode(str_repeat("\x00", 64 * 32 * 4));
+			$clientDataClaims["ThirdPartyName"] ??= $clientDataClaims["ThirdPartyName"] ?? "";
+		}
+
+		$mapper = new \JsonMapper();
+		$mapper->bEnforceMapType = false; //TODO: we don't really need this as an array, but right now we don't have enough models
+		$mapper->bExceptionOnMissingData = $this->session->getProtocolId() > ProtocolInfo::PROTOCOL_1_1_5;
+		$mapper->bExceptionOnUndefinedProperty = false;
+		$mapper->bRemoveUndefinedAttributes = true;
+		$mapper->bStrictObjectTypeChecking = true;
+		try{
+			$clientData = $mapper->map($clientDataClaims, new ClientData());
+		}catch(\JsonMapper_Exception $e){
+			throw PacketHandlingException::wrap($e);
+		}
+		return $clientData;
+	}
+
+	/**
+	 * TODO: This is separated for the purposes of allowing plugins (like Specter) to hack it and bypass authentication.
+	 * In the future this won't be necessary.
+	 *
+	 * @param null|string[] $legacyCertificate
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	protected function processLogin(?string $token, ?AuthenticationType $authType, ?array $legacyCertificate, string $clientData, bool $authRequired) : void{
+		if($legacyCertificate === null){
+			throw new PacketHandlingException("Legacy certificate cannot be null");
+		}
+		$this->server->getAsyncPool()->submitTask(new ProcessLoginTask($legacyCertificate, $clientData, $authRequired, $this->authCallback));
+		$this->session->setHandler(null); //drop packets received during login verification
+	}
+
+	protected function isCompatibleProtocol(int $protocolVersion) : bool{
+		return in_array($protocolVersion, ProtocolInfo::ACCEPTED_PROTOCOL, true);
+	}
+}
