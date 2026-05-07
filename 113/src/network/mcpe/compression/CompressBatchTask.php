@@ -48,7 +48,10 @@ class CompressBatchTask extends AsyncTask{
 	public function onRun() : void{
 		$compressor = $this->compressor->deserialize();
 		$protocolAddition = $this->protocolId >= ProtocolInfo::PROTOCOL_1_20_60 ? chr($compressor->getNetworkId()) : '';
-		$this->setResult($protocolAddition . $compressor->compress($this->data));
+		$compressed = $this->protocolId <= ProtocolInfo::PROTOCOL_1_1_5 && $compressor instanceof ZlibCompressor ?
+			$compressor->compressWithZlibHeader($this->data) :
+			$compressor->compress($this->data);
+		$this->setResult($protocolAddition . $compressed);
 	}
 
 	public function onCompletion() : void{

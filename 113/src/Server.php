@@ -1438,7 +1438,9 @@ class Server{
 				}
 
 				$compressionType = $compressor->getNetworkId();
-				$compressed = $compressor->compress($buffer);
+				$compressed = $protocolId <= ProtocolInfo::PROTOCOL_1_1_5 && $compressor instanceof ZlibCompressor ?
+					$compressor->compressWithZlibHeader($buffer) :
+					$compressor->compress($buffer);
 			}
 
 			return ($protocolId >= ProtocolInfo::PROTOCOL_1_20_60 ? chr($compressionType) : '') . $compressed;

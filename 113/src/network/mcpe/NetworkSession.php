@@ -461,7 +461,19 @@ class NetworkSession{
                     }
                 }
             }else{
-                $decompressed = $payload;
+                if($this->protocolId === null && $payload[0] === "\x78"){
+                    try{
+                        Timings::$playerNetworkReceiveDecompress->startTiming();
+                        $decompressed = $this->compressor->decompress($payload);
+                        $this->logger->debug("Detected compressed legacy packet before NetworkSettings");
+                    }catch(DecompressionException){
+                        $decompressed = $payload;
+                    }finally{
+                        Timings::$playerNetworkReceiveDecompress->stopTiming();
+                    }
+                }else{
+                    $decompressed = $payload;
+                }
             }
 
             try{
@@ -479,6 +491,9 @@ class NetworkSession{
                         }
                         $this->logger->debug("Unknown packet: " . base64_encode($buffer));
                         throw new PacketHandlingException("Unknown packet received (first byte " . ($buffer !== "" ? sprintf("0x%02x", ord($buffer[0])) : "empty") . ", length " . strlen($buffer) . ")");
+                    }
+                    if($this->protocolId === null && $packet->pid() === ProtocolInfo::LOGIN_PACKET){
+                        $this->beginLogin();
                     }
                     try{
                         $this->handleDataPacket($packet, $buffer);
