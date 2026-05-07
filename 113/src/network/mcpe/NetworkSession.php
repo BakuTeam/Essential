@@ -130,6 +130,7 @@ use function is_string;
 use function json_encode;
 use function ord;
 use function random_bytes;
+use function sprintf;
 use function str_split;
 use function strcasecmp;
 use function strlen;
@@ -239,6 +240,10 @@ class NetworkSession{
     private function onSessionStartSuccess() : void{
         $this->logger->debug("Session start handshake completed, awaiting login packet");
         $this->flushGamePacketQueue();
+        $this->beginLogin();
+    }
+
+    private function beginLogin() : void{
         $this->enableCompression = true;
         $this->setHandler(new LoginPacketHandler(
             $this->server,
@@ -251,6 +256,30 @@ class NetworkSession{
             },
             $this->setAuthenticationStatus(...)
         ));
+    }
+
+    /**
+     * @throws PacketHandlingException
+     */
+    private function tryHandleRawLegacyLogin(string $payload) : bool{
+        if($this->protocolId !== null || $payload === "" || ord($payload[0]) !== 0x01){
+            return false;
+        }
+
+        try{
+            $packet = $this->packetPool->getPacket($payload, ProtocolInfo::PROTOCOL_1_1_5);
+        }catch(PacketDecodeException|BinaryDataException){
+            return false;
+        }
+        if($packet === null || $packet->pid() !== ProtocolInfo::LOGIN_PACKET){
+            return false;
+        }
+
+        $this->logger->debug("Detected raw legacy 1.1.5 LoginPacket without batch framing");
+        $this->setProtocolId(ProtocolInfo::PROTOCOL_1_1_5);
+        $this->beginLogin();
+        $this->handleDataPacket($packet, $payload);
+        return true;
     }
 
     protected function createPlayer() : void{
@@ -436,13 +465,20 @@ class NetworkSession{
             }
 
             try{
+                if($this->tryHandleRawLegacyLogin($decompressed)){
+                    return;
+                }
+
                 $stream = new BinaryStream($decompressed);
                 foreach(PacketBatch::decodeRaw($stream) as $buffer){
                     $this->gamePacketLimiter->decrement();
                     $packet = $this->packetPool->getPacket($buffer, $this->getProtocolId());
                     if($packet === null){
+                        if($this->tryHandleRawLegacyLogin($decompressed)){
+                            return;
+                        }
                         $this->logger->debug("Unknown packet: " . base64_encode($buffer));
-                        throw new PacketHandlingException("Unknown packet received");
+                        throw new PacketHandlingException("Unknown packet received (first byte " . ($buffer !== "" ? sprintf("0x%02x", ord($buffer[0])) : "empty") . ", length " . strlen($buffer) . ")");
                     }
                     try{
                         $this->handleDataPacket($packet, $buffer);
@@ -453,18 +489,7 @@ class NetworkSession{
                 }
             }catch(PacketDecodeException|BinaryDataException $e){
                 if (!$this->enableCompression) {
-                    $this->enableCompression = true;
-                    $this->setHandler(new LoginPacketHandler(
-                        $this->server,
-                        $this,
-                        function(PlayerInfo $info) : void{
-                            $this->info = $info;
-                            //$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_network_session_playerName(TextFormat::AQUA . $info->getUsername() . TextFormat::RESET)));
-                            $this->logger->setPrefix($this->getLogPrefix());
-                            $this->manager->markLoginReceived($this);
-                        },
-                        $this->setAuthenticationStatus(...)
-                    ));
+                    $this->beginLogin();
                     $this->handleEncoded($payload);
                     return;
                 }
