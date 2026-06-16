@@ -554,7 +554,7 @@ class InventoryManager{
 		$this->session->sendDataPacket(InventoryContentPacket::create(
 			$windowId,
 			array_fill_keys(array_keys($itemStackWrappers), new ItemStackWrapper(0, ItemStack::null())),
-			$this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20 ? null : new FullContainerName($this->lastInventoryNetworkId),
+			new FullContainerName($this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20 ? 0 : $this->lastInventoryNetworkId, null),
 			0,
 			new ItemStackWrapper(0, ItemStack::null())
 		));

@@ -110,7 +110,7 @@ enum RecordType{
 		return $this->getMetadata()[0];
 	}
 
-	public function getSoundId() : int{
+	public function getSoundId() : string{
 		return $this->getMetadata()[1];
 	}
 
