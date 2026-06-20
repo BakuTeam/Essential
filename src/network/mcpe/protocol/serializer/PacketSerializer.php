@@ -306,10 +306,10 @@ class PacketSerializer extends BinaryStream{
 	 * @throws PacketDecodeException
 	 * @throws BinaryDataException
 	 */
-	public function getItemStackWithoutStackId() : ItemStack{
+	public function getItemStackWithoutStackId(bool $decodeExtraData = true) : ItemStack{
 		return $this->getItemStack(function() : void{
 			//NOOP
-		});
+		}, $decodeExtraData);
 	}
 
 	public function putItemStackWithoutStackId(ItemStack $item) : void{
@@ -387,7 +387,7 @@ class PacketSerializer extends BinaryStream{
 	 * @throws PacketDecodeException
 	 * @throws BinaryDataException
 	 */
-	public function getItemStack(\Closure $readExtraCrapInTheMiddle) : ItemStack{
+	public function getItemStack(\Closure $readExtraCrapInTheMiddle, bool $decodeExtraData = true) : ItemStack{
 		$id = $this->getVarInt();
 		if($id === 0){
 			return ItemStack::null();
@@ -401,6 +401,9 @@ class PacketSerializer extends BinaryStream{
 
 			$blockRuntimeId = $this->getVarInt();
 			$rawExtraData = $this->getString();
+			if(!$decodeExtraData){
+				return new ItemStack($id, $meta, $count, $blockRuntimeId, null, [], [], null, $rawExtraData);
+			}
 			$extraData = self::decoder($this->getProtocolId(), $rawExtraData, 0);
 		}else{
 			$auxValue = $this->getVarInt();

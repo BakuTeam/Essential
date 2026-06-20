@@ -51,7 +51,7 @@ class ReleaseItemTransactionData extends TransactionData{
 	protected function decodeData(PacketSerializer $stream) : void{
 		$this->actionType = $stream->getUnsignedVarInt();
 		$this->hotbarSlot = $stream->getVarInt();
-		$this->itemInHand = ItemStackWrapper::read($stream);
+		$this->itemInHand = ItemStackWrapper::read($stream, decodeExtraData: false);
 		$this->headPosition = $stream->getVector3();
 	}
 

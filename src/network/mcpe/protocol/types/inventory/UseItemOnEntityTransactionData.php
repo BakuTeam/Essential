@@ -63,7 +63,7 @@ class UseItemOnEntityTransactionData extends TransactionData{
 		$this->actorRuntimeId = $stream->getActorRuntimeId();
 		$this->actionType = $stream->getUnsignedVarInt();
 		$this->hotbarSlot = $stream->getVarInt();
-		$this->itemInHand = ItemStackWrapper::read($stream);
+		$this->itemInHand = ItemStackWrapper::read($stream, decodeExtraData: false);
 		$this->playerPosition = $stream->getVector3();
 		$this->clickPosition = $stream->getVector3();
 	}

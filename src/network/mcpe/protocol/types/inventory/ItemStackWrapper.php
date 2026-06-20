@@ -31,7 +31,7 @@ final class ItemStackWrapper{
 
 	public function getItemStack() : ItemStack{ return $this->itemStack; }
 
-	public static function read(PacketSerializer $in, bool $hasLegacyNetId = false) : self{
+	public static function read(PacketSerializer $in, bool $hasLegacyNetId = false, bool $decodeExtraData = true) : self{
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
 			$stackId = 0;
 			$stack = $in->getItemStack(function(PacketSerializer $in) use (&$stackId) : void{
@@ -39,17 +39,17 @@ final class ItemStackWrapper{
 				if($hasNetId){
 					$stackId = $in->getVarInt();
 				}
-			});
+			}, $decodeExtraData);
 			return new self($stackId, $stack);
 		}
 
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0 && $hasLegacyNetId){
 			$stackId = $in->getVarInt();
-			$stack = $in->getItemStackWithoutStackId();
+			$stack = $in->getItemStackWithoutStackId($decodeExtraData);
 			return new self($stackId, $stack);
 		}
 
-		$stack = $in->getItemStackWithoutStackId();
+		$stack = $in->getItemStackWithoutStackId($decodeExtraData);
 		return self::legacy($stack);
 	}
 

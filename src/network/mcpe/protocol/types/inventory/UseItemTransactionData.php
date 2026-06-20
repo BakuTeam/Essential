@@ -89,7 +89,7 @@ class UseItemTransactionData extends TransactionData{
 		$this->blockPosition = $stream->getBlockPosition($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_10);
 		$this->face = $stream->getVarInt();
 		$this->hotbarSlot = $stream->getVarInt();
-		$this->itemInHand = ItemStackWrapper::read($stream);
+		$this->itemInHand = ItemStackWrapper::read($stream, decodeExtraData: false);
 		$this->playerPosition = $stream->getVector3();
 		$this->clickPosition = $stream->getVector3();
 		$this->blockRuntimeId = $stream->getUnsignedVarInt();

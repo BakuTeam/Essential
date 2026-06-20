@@ -44,7 +44,7 @@ final class DeprecatedCraftingResultsStackRequestAction extends ItemStackRequest
 	public static function read(PacketSerializer $in) : self{
 		$results = [];
 		for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
-			$results[] = $in->getItemStackWithoutStackId();
+			$results[] = $in->getItemStackWithoutStackId(false);
 		}
 		$iterations = $in->getByte();
 		return new self($results, $iterations);

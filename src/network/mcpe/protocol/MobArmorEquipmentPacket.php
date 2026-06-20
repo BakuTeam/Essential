@@ -46,10 +46,10 @@ class MobArmorEquipmentPacket extends DataPacket implements ClientboundPacket, S
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->actorRuntimeId = $in->getActorRuntimeId();
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
-			$this->head = ItemStackWrapper::read($in);
-			$this->chest = ItemStackWrapper::read($in);
-			$this->legs = ItemStackWrapper::read($in);
-			$this->feet = ItemStackWrapper::read($in);
+			$this->head = ItemStackWrapper::read($in, decodeExtraData: false);
+			$this->chest = ItemStackWrapper::read($in, decodeExtraData: false);
+			$this->legs = ItemStackWrapper::read($in, decodeExtraData: false);
+			$this->feet = ItemStackWrapper::read($in, decodeExtraData: false);
 		}else{
 			$this->head = ItemStackWrapper::legacy($in->getItemStackWithoutStackId());
 			$this->chest = ItemStackWrapper::legacy($in->getItemStackWithoutStackId());
@@ -57,7 +57,7 @@ class MobArmorEquipmentPacket extends DataPacket implements ClientboundPacket, S
 			$this->feet = ItemStackWrapper::legacy($in->getItemStackWithoutStackId());
 		}
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20){
-			$this->body = ItemStackWrapper::read($in);
+			$this->body = ItemStackWrapper::read($in, decodeExtraData: false);
 		}
 	}
 

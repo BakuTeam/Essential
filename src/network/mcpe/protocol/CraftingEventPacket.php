@@ -53,22 +53,22 @@ class CraftingEventPacket extends DataPacket implements ServerboundPacket{
 		$size = $in->getUnsignedVarInt();
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
 			for($i = 0; $i < $size and $i < 128; ++$i){
-				$this->input[] = ItemStackWrapper::read($in);
+				$this->input[] = ItemStackWrapper::read($in, decodeExtraData: false);
 			}
 		}else{
 			for($i = 0; $i < $size and $i < 128; ++$i){
-				$this->input[] = ItemStackWrapper::legacy($in->getItemStackWithoutStackId());
+				$this->input[] = ItemStackWrapper::legacy($in->getItemStackWithoutStackId(false));
 			}
 		}
 
 		$size = $in->getUnsignedVarInt();
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
 			for($i = 0; $i < $size and $i < 128; ++$i){
-				$this->output[] = ItemStackWrapper::read($in);
+				$this->output[] = ItemStackWrapper::read($in, decodeExtraData: false);
 			}
 		}else{
 			for($i = 0; $i < $size and $i < 128; ++$i){
-				$this->output[] = ItemStackWrapper::legacy($in->getItemStackWithoutStackId());
+				$this->output[] = ItemStackWrapper::legacy($in->getItemStackWithoutStackId(false));
 			}
 		}
 	}

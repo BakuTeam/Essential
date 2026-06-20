@@ -45,7 +45,7 @@ class MobEquipmentPacket extends DataPacket implements ClientboundPacket, Server
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
 			$this->item = $in->getNetworkItemStackDescriptor(false);
 		}elseif($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
-			$this->item = ItemStackWrapper::read($in);
+			$this->item = ItemStackWrapper::read($in, decodeExtraData: false);
 		}else{
 			$this->item = ItemStackWrapper::legacy($in->getItemStackWithoutStackId());
 		}
