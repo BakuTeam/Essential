@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible Dummy core issue
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: input
+    id: branch
+    attributes:
+      label: Branch
+      description: Example: main, mcbe-1.1.5
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit hash
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Minecraft Bedrock version and protocol
+      description: Example: 1.26.20 / 975
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Describe the smallest reliable reproduction path.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or crashdump
+      render: text
+

@@ -1,0 +1,39 @@
+# Composer
+/vendor/
+/composer.phar
+
+# Build artifacts
+/*.phar
+/*.zip
+/build/
+/dist/
+
+# PocketMine runtime data
+/banned-ips.txt
+/banned-players.txt
+/crashdumps/
+/logs/
+/ops.txt
+/players/
+/plugin_data/
+/plugins/
+/pocketmine.yml
+/resource_packs/
+/server.properties
+/server.log
+/white-list.txt
+/worlds/
+
+# Local environment
+/.env
+/.env.*
+/.idea/
+/.vscode/
+
+# Test and cache files
+/.phpunit.result.cache
+/.php-cs-fixer.cache
+/.phpstan.cache/
+/var/
+/tmp/
+

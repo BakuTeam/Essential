@@ -1,0 +1,17 @@
+SPDX-License-Identifier: LGPL-3.0-or-later
+
+Dummy is a private fork of PocketMine-MP with additional changes for
+Minecraft: Bedrock Edition server networks.
+
+The upstream PocketMine-MP codebase is distributed under the GNU Lesser
+General Public License, version 3 or later. The same license applies to
+the PocketMine-MP-derived source code in this repository unless a file
+states a different compatible license.
+
+Commercial partnership terms cover repository access, support, updates and
+private maintenance. They do not remove or replace obligations from the
+underlying open-source licenses.
+
+Full LGPL-3.0 text:
+https://www.gnu.org/licenses/lgpl-3.0.txt
+

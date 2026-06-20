@@ -1,0 +1,21 @@
+* text=auto eol=lf
+
+*.php text eol=lf diff=php
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+*.bin binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.phar binary
+*.zip binary
+
+/vendor export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore
+/.editorconfig export-ignore
+
