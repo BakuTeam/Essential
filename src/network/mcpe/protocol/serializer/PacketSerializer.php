@@ -324,7 +324,7 @@ class PacketSerializer extends BinaryStream{
 	 * @throws PacketDecodeException
 	 * @throws BinaryDataException
 	 */
-	public function getNetworkItemStackDescriptor() : ItemStackWrapper{
+	public function getNetworkItemStackDescriptor(bool $decodeExtraData = true) : ItemStackWrapper{
 		$id = $this->getLShort();
 		$count = $this->getLShort();
 		$meta = $this->getUnsignedVarInt();
@@ -339,6 +339,10 @@ class PacketSerializer extends BinaryStream{
 		$rawExtraData = $this->getString();
 		if($id === 0){
 			return new ItemStackWrapper($stackId, ItemStack::null());
+		}
+
+		if(!$decodeExtraData){
+			return new ItemStackWrapper($stackId, new ItemStack($id, $meta, $count, $blockRuntimeId, null, [], [], null, $rawExtraData));
 		}
 
 		$extraData = self::decoder($this->getProtocolId(), $rawExtraData, 0);

@@ -43,7 +43,7 @@ class MobEquipmentPacket extends DataPacket implements ClientboundPacket, Server
 		$this->actorRuntimeId = $in->getActorRuntimeId();
 
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){
-			$this->item = $in->getNetworkItemStackDescriptor();
+			$this->item = $in->getNetworkItemStackDescriptor(false);
 		}elseif($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
 			$this->item = ItemStackWrapper::read($in);
 		}else{

@@ -360,6 +360,9 @@ class TypeConverter{
 			return VanillaItems::AIR();
 		}
 		$compound = $itemStack->getNbt();
+		if($compound === null && ($rawExtraData = $itemStack->getRawExtraData()) !== null){
+			$compound = $this->deserializeItemStackExtraData($rawExtraData, $itemStack->getId())->getNbt();
+		}
 
 		$itemResult = $this->itemTranslator->fromNetworkId($itemStack->getId(), $itemStack->getMeta(), $itemStack->getBlockRuntimeId());
 
