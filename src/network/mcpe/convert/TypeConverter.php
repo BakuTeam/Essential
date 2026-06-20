@@ -288,6 +288,20 @@ class TypeConverter{
 		return $tag;
 	}
 
+	protected function itemNBTNeedsCleanup(CompoundTag $tag) : bool{
+		if($tag->getTag(Item::TAG_BLOCK_ENTITY_TAG) !== null){
+			return true;
+		}
+
+		try{
+			$blockEntityInventoryTag = $tag->getListTag(Container::TAG_ITEMS);
+		}catch(UnexpectedTagTypeException){
+			return false;
+		}
+
+		return $blockEntityInventoryTag !== null && $blockEntityInventoryTag->getTagType() === NBT::TAG_Compound && $blockEntityInventoryTag->count() > 0;
+	}
+
 	public function coreItemStackToNet(Item $itemStack) : ItemStack{
 		if($itemStack->isNull()){
 			return ItemStack::null();
@@ -295,8 +309,10 @@ class TypeConverter{
 		$nbt = $itemStack->getNamedTag();
 		if($nbt->count() === 0){
 			$nbt = null;
-		}else{
+		}elseif($this->itemNBTNeedsCleanup($nbt)){
 			$nbt = $this->cleanupUnnecessaryItemNBT($nbt);
+		}else{
+			$nbt = clone $nbt;
 		}
 
 		$idMeta = $this->itemTranslator->toNetworkIdQuiet($itemStack);
@@ -312,11 +328,11 @@ class TypeConverter{
 			[$id, $meta, $blockRuntimeId] = $idMeta;
 		}
 
-		// $extraData = $id === $this->shieldRuntimeId ?
-		// 	new ItemStackExtraDataShield($nbt, canPlaceOn: [], canDestroy: [], blockingTick: 0) :
-		// 	new ItemStackExtraData($nbt, canPlaceOn: [], canDestroy: []);
-		// $extraDataSerializer = PacketSerializer::encoder($this->protocolId);
-		// $extraData->write($extraDataSerializer);
+		$extraData = $id === $this->shieldRuntimeId ?
+			new ItemStackExtraDataShield($nbt, canPlaceOn: [], canDestroy: [], blockingTick: 0) :
+			new ItemStackExtraData($nbt, canPlaceOn: [], canDestroy: []);
+		$extraDataSerializer = PacketSerializer::encoder($this->protocolId);
+		$extraData->write($extraDataSerializer);
 
 		return new ItemStack(
 			$id,
@@ -326,7 +342,8 @@ class TypeConverter{
 			$nbt,
 			[],
 			[],
-			$id === $this->shieldRuntimeId ? 0 : null
+			$id === $this->shieldRuntimeId ? 0 : null,
+			$extraDataSerializer->getBuffer()
 		);
 	}
 

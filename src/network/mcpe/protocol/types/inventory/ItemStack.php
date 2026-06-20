@@ -33,7 +33,8 @@ final class ItemStack implements \JsonSerializable{
 		private ?CompoundTag $nbt,
 		private array $canPlaceOn,
 		private array $canDestroy,
-		private ?int $shieldBlockingTick = null
+		private ?int $shieldBlockingTick = null,
+		private ?string $rawExtraData = null
 	){}
 
 	public static function null() : self{
@@ -76,6 +77,10 @@ final class ItemStack implements \JsonSerializable{
 		return $this->shieldBlockingTick;
 	}
 
+	public function getRawExtraData() : ?string{
+		return $this->rawExtraData;
+	}
+
 	public function equals(ItemStack $itemStack) : bool{
 		return
 			$this->id === $itemStack->id &&
@@ -85,6 +90,7 @@ final class ItemStack implements \JsonSerializable{
 			$this->canPlaceOn === $itemStack->canPlaceOn &&
 			$this->canDestroy === $itemStack->canDestroy &&
 			$this->shieldBlockingTick === $itemStack->shieldBlockingTick && (
+				($this->rawExtraData !== null && $itemStack->rawExtraData !== null && $this->rawExtraData === $itemStack->rawExtraData) ||
 				$this->nbt === $itemStack->nbt || //this covers null === null and fast object identity
 				($this->nbt !== null && $itemStack->nbt !== null && $this->nbt->equals($itemStack->nbt))
 			);
@@ -109,6 +115,9 @@ final class ItemStack implements \JsonSerializable{
 		}
 		if($this->nbt !== null){
 			$result["nbt"] = base64_encode((new NetworkNbtSerializer())->write(new TreeRoot($this->nbt)));
+		}
+		if($this->rawExtraData !== null){
+			$result["rawExtraData"] = base64_encode($this->rawExtraData);
 		}
 		return $result;
 	}

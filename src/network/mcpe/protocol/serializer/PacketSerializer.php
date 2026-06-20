@@ -342,7 +342,7 @@ class PacketSerializer extends BinaryStream{
 		}
 
 		$extraData = self::decoder($this->getProtocolId(), $rawExtraData, 0);
-		$stack = self::readExtraItemStackData($extraData, $id, $meta, $count, $blockRuntimeId);
+		$stack = self::readExtraItemStackData($extraData, $id, $meta, $count, $blockRuntimeId, $rawExtraData);
 		if(!$extraData->feof()){
 			throw new PacketDecodeException("Unexpected trailing extradata for network item descriptor $id");
 		}
@@ -368,9 +368,13 @@ class PacketSerializer extends BinaryStream{
 			return;
 		}
 
-		$extraData = self::encoder($this->getProtocolId());
-		self::putExtraItemStackData($extraData, $item);
-		$this->putString($extraData->getBuffer());
+		$rawExtraData = $item->getRawExtraData();
+		if($rawExtraData === null){
+			$extraData = self::encoder($this->getProtocolId());
+			self::putExtraItemStackData($extraData, $item);
+			$rawExtraData = $extraData->getBuffer();
+		}
+		$this->putString($rawExtraData);
 	}
 
 	/**
@@ -392,7 +396,8 @@ class PacketSerializer extends BinaryStream{
 			$readExtraCrapInTheMiddle($this);
 
 			$blockRuntimeId = $this->getVarInt();
-			$extraData = self::decoder($this->getProtocolId(), $this->getString(), 0);
+			$rawExtraData = $this->getString();
+			$extraData = self::decoder($this->getProtocolId(), $rawExtraData, 0);
 		}else{
 			$auxValue = $this->getVarInt();
 			$count = $auxValue & 0xff;
@@ -402,7 +407,7 @@ class PacketSerializer extends BinaryStream{
 			$extraData = $this;
 		}
 
-		$stack = self::readExtraItemStackData($extraData, $id, $meta, $count, $blockRuntimeId);
+		$stack = self::readExtraItemStackData($extraData, $id, $meta, $count, $blockRuntimeId, $rawExtraData ?? null);
 
 		if($extraData !== $this) {
 			if(!$extraData->feof()){
@@ -413,7 +418,7 @@ class PacketSerializer extends BinaryStream{
 		return $stack;
 	}
 
-	private static function readExtraItemStackData(PacketSerializer $serializer, int $id, int $meta, int $count, int $blockRuntimeId) : ItemStack{
+	private static function readExtraItemStackData(PacketSerializer $serializer, int $id, int $meta, int $count, int $blockRuntimeId, ?string $rawExtraData = null) : ItemStack{
 		if($serializer->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220) {
 			$getListCount = \Closure::fromCallable([$serializer, "getLInt"]);
 			$getString = \Closure::fromCallable(function() use ($serializer) : string{
@@ -465,7 +470,7 @@ class PacketSerializer extends BinaryStream{
 			$shieldBlockingTick = $getBlockingTick();
 		}
 
-		return new ItemStack($id, $meta, $count, $blockRuntimeId, $compound, $canPlaceOn, $canDestroy, $shieldBlockingTick);
+		return new ItemStack($id, $meta, $count, $blockRuntimeId, $compound, $canPlaceOn, $canDestroy, $shieldBlockingTick, $rawExtraData);
 	}
 
 	/**
@@ -488,9 +493,13 @@ class PacketSerializer extends BinaryStream{
 
 			$this->putVarInt($item->getBlockRuntimeId());
 
-			$extraData = PacketSerializer::encoder($this->getProtocolId());
-			self::putExtraItemStackData($extraData, $item);
-			$this->putString($extraData->getBuffer());
+			$rawExtraData = $item->getRawExtraData();
+			if($rawExtraData === null){
+				$extraData = PacketSerializer::encoder($this->getProtocolId());
+				self::putExtraItemStackData($extraData, $item);
+				$rawExtraData = $extraData->getBuffer();
+			}
+			$this->putString($rawExtraData);
 			return;
 		}
 

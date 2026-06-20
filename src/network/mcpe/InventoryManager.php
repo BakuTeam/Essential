@@ -441,15 +441,32 @@ class InventoryManager{
 	 * client-provided NBT is consistently sorted.
 	 */
 	private function itemStackExtraDataEqual(ItemStack $left, ItemStack $right) : bool{
+		$leftRawExtraData = $left->getRawExtraData();
+		$rightRawExtraData = $right->getRawExtraData();
+		if($leftRawExtraData !== null && $leftRawExtraData === $rightRawExtraData){
+			return true;
+		}
+
+		$leftCanPlaceOn = $left->getCanPlaceOn();
+		$rightCanPlaceOn = $right->getCanPlaceOn();
+		if($leftCanPlaceOn !== $rightCanPlaceOn){
+			return false;
+		}
+
+		$leftCanDestroy = $left->getCanDestroy();
+		$rightCanDestroy = $right->getCanDestroy();
+		if($leftCanDestroy !== $rightCanDestroy){
+			return false;
+		}
+
+		if($left->getShieldBlockingTick() !== $right->getShieldBlockingTick()){
+			return false;
+		}
+
 		$leftNbt = $left->getNbt();
 		$rightNbt = $right->getNbt();
-		return
-			$left->getCanPlaceOn() === $right->getCanPlaceOn() &&
-			$left->getCanDestroy() === $right->getCanDestroy() &&
-			$left->getShieldBlockingTick() === $right->getShieldBlockingTick() && (
-				$leftNbt === $rightNbt || //this covers null === null and fast object identity
-				($leftNbt !== null && $rightNbt !== null && $leftNbt->equals($rightNbt))
-			);
+		return $leftNbt === $rightNbt || //this covers null === null and fast object identity
+			($leftNbt !== null && $rightNbt !== null && $leftNbt->equals($rightNbt));
 	}
 
 	private function itemStacksEqual(ItemStack $left, ItemStack $right) : bool{
@@ -491,13 +508,17 @@ class InventoryManager{
 		 * cost performance. Instead, clear the slot(s) first, then send the new item(s).
 		 * The network cost of doing this is fortunately minimal, as an air itemstack is only 1 byte.
 		 */
+		$useCompactContainerDescriptor = $this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20;
+		$containerName = $useCompactContainerDescriptor ? null : new FullContainerName($this->lastInventoryNetworkId);
+		$storage = $useCompactContainerDescriptor ? null : new ItemStackWrapper(0, ItemStack::null());
+
 		if($itemStackWrapper->getStackId() !== 0){
 			$this->session->sendDataPacket(InventorySlotPacket::create(
 				$windowId,
 				$netSlot,
-				new FullContainerName($this->lastInventoryNetworkId),
+				$containerName,
 				0,
-				new ItemStackWrapper(0, ItemStack::null()),
+				$storage,
 				new ItemStackWrapper(0, ItemStack::null())
 			));
 		}
@@ -505,9 +526,9 @@ class InventoryManager{
 		$this->session->sendDataPacket(InventorySlotPacket::create(
 			$windowId,
 			$netSlot,
-			new FullContainerName($this->lastInventoryNetworkId),
+			$containerName,
 			0,
-			new ItemStackWrapper(0, ItemStack::null()),
+			$storage,
 			$itemStackWrapper
 		));
 	}
@@ -524,15 +545,16 @@ class InventoryManager{
 		 * cost performance. Instead, clear the slot(s) first, then send the new item(s).
 		 * The network cost of doing this is fortunately minimal, as an air itemstack is only 1 byte.
 		 */
+		$containerName = new FullContainerName($this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20 ? 0 : $this->lastInventoryNetworkId);
 		$this->session->sendDataPacket(InventoryContentPacket::create(
 			$windowId,
 			array_fill_keys(array_keys($itemStackWrappers), new ItemStackWrapper(0, ItemStack::null())),
-			new FullContainerName($this->lastInventoryNetworkId),
+			$containerName,
 			0,
 			new ItemStackWrapper(0, ItemStack::null())
 		));
 		//now send the real contents
-		$this->session->sendDataPacket(InventoryContentPacket::create($windowId, $itemStackWrappers, new FullContainerName($this->lastInventoryNetworkId), 0, new ItemStackWrapper(0, ItemStack::null())));
+		$this->session->sendDataPacket(InventoryContentPacket::create($windowId, $itemStackWrappers, $containerName, 0, new ItemStackWrapper(0, ItemStack::null())));
 	}
 
 	public function syncSlot(Inventory $inventory, int $slot, ItemStack $itemStack) : void{
