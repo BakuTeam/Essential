@@ -1,42 +1,44 @@
 {
-  "name": "lunarixbe/dummy",
-  "description": "Private Minecraft: Bedrock Edition server core based on PocketMine-MP and NetherGamesMC changes.",
-  "type": "project",
-  "license": "LGPL-3.0-or-later",
-  "minimum-stability": "stable",
-  "prefer-stable": true,
-  "require": {
-    "php": ">=8.1",
-    "adhocore/json-comment": "^1.2.1",
-    "brick/math": "^0.13.1",
-    "netresearch/jsonmapper": "^5.0",
-    "pocketmine/bedrock-block-upgrade-schema": "^5.2.0",
-    "pocketmine/bedrock-item-upgrade-schema": "^1.16.0",
-    "pocketmine/binaryutils": "^0.2.6",
-    "pocketmine/callback-validator": "^1.0.3",
-    "pocketmine/color": "^0.3.1",
-    "pocketmine/errorhandler": "^0.7.0",
-    "pocketmine/locale-data": "^2.25.2",
-    "pocketmine/log": "^0.4.0",
-    "pocketmine/math": "^1.0.0",
-    "pocketmine/nbt": "^1.1.1",
-    "pocketmine/raklib": "^1.2.0",
-    "pocketmine/raklib-ipc": "^1.0.1",
-    "pocketmine/snooze": "^0.5.0",
-    "ramsey/collection": "^2.1.1",
-    "ramsey/uuid": "^4.9.1",
-    "symfony/filesystem": "^6.4.24"
-  },
-  "autoload": {
-    "psr-4": {
-      "pocketmine\\": "src/"
-    },
-    "files": [
-      "src/CoreConstants.php"
-    ]
-  },
-  "config": {
-    "optimize-autoloader": true,
-    "sort-packages": true
-  }
+	"name": "lunarixbe/dummy",
+	"description": "Private Minecraft: Bedrock Edition server core based on PocketMine-MP and NetherGamesMC changes.",
+	"type": "project",
+	"license": "LGPL-3.0-or-later",
+	"minimum-stability": "stable",
+	"prefer-stable": true,
+	"require": {
+		"php": ">=8.1",
+		"adhocore/json-comment": "^1.2.1",
+		"brick/math": "^0.13.1",
+		"netresearch/jsonmapper": "^5.0",
+		"pocketmine/bedrock-block-upgrade-schema": "^5.2.0",
+		"pocketmine/bedrock-item-upgrade-schema": "^1.16.0",
+		"pocketmine/binaryutils": "^0.2.6",
+		"pocketmine/callback-validator": "^1.0.3",
+		"pocketmine/color": "^0.3.1",
+		"pocketmine/errorhandler": "^0.7.0",
+		"pocketmine/log": "^0.4.0",
+		"pocketmine/math": "^1.0.0",
+		"pocketmine/nbt": "^1.1.1",
+		"pocketmine/raklib": "^1.2.0",
+		"pocketmine/raklib-ipc": "^1.0.1",
+		"pocketmine/snooze": "^0.5.0",
+		"ramsey/collection": "^2.1.1",
+		"ramsey/uuid": "^4.9.1",
+		"symfony/filesystem": "^6.4.24"
+	},
+	"require-dev": {
+		"friendsofphp/php-cs-fixer": "^3.89"
+	},
+	"autoload": {
+		"psr-4": {
+			"pocketmine\\": "src/"
+		},
+		"files": [
+			"src/CoreConstants.php"
+		]
+	},
+	"config": {
+		"optimize-autoloader": true,
+		"sort-packages": true
+	}
 }
