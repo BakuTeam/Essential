@@ -30,7 +30,7 @@ use pocketmine\network\mcpe\protocol\types\GetTypeIdFromConstTrait;
 class NormalTransactionData extends TransactionData{
 	use GetTypeIdFromConstTrait;
 
-	public const ID = InventoryTransactionPacket::TYPE_NORMAL;
+	public const int ID = InventoryTransactionPacket::TYPE_NORMAL;
 
 	protected function decodeData(PacketSerializer $stream) : void{
 
