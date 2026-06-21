@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "78e47064e287192ea13686339d3c5a8f",
+    "content-hash": "b612cf11b6157f47f99519a3b2fe3c15",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -124,6 +124,29 @@
                 }
             ],
             "time": "2025-03-29T13:50:30+00:00"
+        },
+        {
+            "name": "lunarixbe/locale-data",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/LunarixBE/locale-data.git",
+                "reference": "f9322f8a4bef7f3c199985098ea6efb709581ceb"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/LunarixBE/locale-data/zipball/f9322f8a4bef7f3c199985098ea6efb709581ceb",
+                "reference": "f9322f8a4bef7f3c199985098ea6efb709581ceb",
+                "shasum": ""
+            },
+            "default-branch": true,
+            "type": "library",
+            "description": "Language resources used by Dummy",
+            "support": {
+                "source": "https://github.com/LunarixBE/locale-data/tree/main",
+                "issues": "https://github.com/LunarixBE/locale-data/issues"
+            },
+            "time": "2026-06-21T09:59:46+00:00"
         },
         {
             "name": "netresearch/jsonmapper",
@@ -3641,7 +3664,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "lunarixbe/locale-data": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

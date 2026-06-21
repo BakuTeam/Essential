@@ -5,6 +5,14 @@
 	"license": "LGPL-3.0-or-later",
 	"minimum-stability": "stable",
 	"prefer-stable": true,
+
+	"repositories": [
+		{
+			"type": "vcs",
+			"url": "https://github.com/LunarixBE/locale-data.git"
+		}
+	],
+
 	"require": {
 		"php": ">=8.1",
 		"adhocore/json-comment": "^1.2.1",
@@ -24,11 +32,15 @@
 		"pocketmine/snooze": "^0.5.0",
 		"ramsey/collection": "^2.1.1",
 		"ramsey/uuid": "^4.9.1",
-		"symfony/filesystem": "^6.4.24"
+		"symfony/filesystem": "^6.4.24",
+
+		"lunarixbe/locale-data": "dev-main"
 	},
+
 	"require-dev": {
 		"friendsofphp/php-cs-fixer": "^3.89"
 	},
+
 	"autoload": {
 		"psr-4": {
 			"pocketmine\\": "src/"
@@ -37,6 +49,7 @@
 			"src/CoreConstants.php"
 		]
 	},
+
 	"config": {
 		"optimize-autoloader": true,
 		"sort-packages": true
