@@ -1,39 +1,59 @@
-# Composer
-/vendor/
-/composer.phar
-
-# Build artifacts
-/*.phar
-/*.zip
-/build/
-/dist/
-
-# PocketMine runtime data
-/banned-ips.txt
-/banned-players.txt
-/crashdumps/
-/logs/
-/ops.txt
-/players/
-/plugin_data/
-/plugins/
+players/*
+worlds/*
+world_conversion_backups/*
+backups/*
+plugin_data/*
+plugins/*
+bin*/*
+timings/*
+crashdumps/*
+*.log
+*.txt
+*.phar
+server.properties
 /pocketmine.yml
-/resource_packs/
-/server.properties
-/server.log
-/white-list.txt
-/worlds/
+/plugin_list.yml
+memory_dumps/*
+resource_packs/
+server.lock
+/phpstan.neon
+/docker/test_data/
 
-# Local environment
-/.env
-/.env.*
-/.idea/
-/.vscode/
+# Common IDEs
+.idea/*
+!.idea/codeStyles/
+!.idea/fileTemplates/
+nbproject/*
 
-# Test and cache files
+# Windows image file caches
+Thumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Mac crap
+.DS_Store
+/nbproject/private/
+
+# Sphinx-doc
+/docs/build/
+!/docs/requirements.txt
+
+# Composer
+vendor/*
+
+# Travis files
+test_data/*
+
+# Doxygen
+Documentation/*
+
+# PHPUnit
 /.phpunit.result.cache
-/.php-cs-fixer.cache
-/.phpstan.cache/
-/var/
-/tmp/
 
+# php-cs-fixer
+/.php_cs.cache
+/.php-cs-fixer.cache
+
+# install-local-protocol.sh
+/composer-local-protocol.*

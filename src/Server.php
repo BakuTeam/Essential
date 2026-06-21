@@ -852,9 +852,9 @@ class Server{
 			$this->dataPath = realpath($dataPath) . DIRECTORY_SEPARATOR;
 			$this->pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
 
-			$pocketmineYmlPath = Path::join($this->dataPath, "quadrium.yml");
+			$pocketmineYmlPath = Path::join($this->dataPath, "pocketmine.yml");
 			if(!file_exists($pocketmineYmlPath)){
-				$content = Filesystem::fileGetContents(Path::join(\pocketmine\RESOURCE_PATH, "quadrium.yml"));
+				$content = Filesystem::fileGetContents(Path::join(\pocketmine\RESOURCE_PATH, "pocketmine.yml"));
 				@file_put_contents($pocketmineYmlPath, $content);
 			}
 
@@ -1719,7 +1719,7 @@ class Server{
 		$position = $player->getPosition();
 
 		$this->logger->info(TextFormat::WHITE . "Session connected: [" . $session->getIp() . ":" . $session->getPort() . "] " . TextFormat::GOLD . $player->getName() . TextFormat::WHITE . " at [" . $position->getWorld()->getDisplayName() . ":" . round($position->x, 4) . ", " . round($position->y, 4) . ", " . round($position->z, 4) . "] with protocol: " . $session->getProtocolId());
-		
+
 		// $this->logger->info($this->language->translate(KnownTranslationFactory::pocketmine_player_logIn(
 		// 	TextFormat::AQUA . $player->getName() . TextFormat::RESET,
 		// 	$session->getIp(),
