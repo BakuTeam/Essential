@@ -2,10 +2,7 @@
 
 $finder = PhpCsFixer\Finder::create()
 	->in(__DIR__ . '/src')
-	->in(__DIR__ . '/generated') //TODO: maybe this is unnecessary???
 	->in(__DIR__ . '/build')
-	->in(__DIR__ . '/tests')
-	->in(__DIR__ . '/tools')
 	->notPath('plugins/DevTools')
 	//JsonMapper will break if the FQNs in the doc comments for these are shortened :(
 	->notPath('crafting/json')

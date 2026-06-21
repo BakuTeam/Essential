@@ -1,13 +1,22 @@
 <?php
 
 /*
- * This file is part of BedrockProtocol.
- * Copyright (C) 2014-2022 PocketMine Team <https://github.com/pmmp/BedrockProtocol>
  *
- * BedrockProtocol is free software: you can redistribute it and/or modify
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
  */
 
 declare(strict_types=1);
@@ -33,7 +42,7 @@ class AnimatePacket extends DataPacket implements ClientboundPacket, Serverbound
 	public ?string $swingSource = null;
 
 	public static function create(int $actorRuntimeId, int $actionId, float $data = 0.0, ?string $swingSource = null) : self{
-		$result = new self;
+		$result = new self();
 		$result->actorRuntimeId = $actorRuntimeId;
 		$result->action = $actionId;
 		$result->data = $data;
@@ -76,7 +85,7 @@ class AnimatePacket extends DataPacket implements ClientboundPacket, Serverbound
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_120 || ($this->action === self::ACTION_ROW_LEFT || $this->action === self::ACTION_ROW_RIGHT)){
 			$out->putLFloat($this->data);
 		}
-		
+
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_130){
 			$out->writeOptional($this->swingSource, $out->putString(...));
 		}

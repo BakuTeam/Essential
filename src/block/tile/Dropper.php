@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace pocketmine\block\tile;
 
 use pocketmine\block\inventory\DropperInventory;
-use pocketmine\block\inventory\HopperInventory;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\world\World;
@@ -63,7 +62,7 @@ class Dropper extends Spawnable implements Container{
 		return "Dropper";
 	}
 
-	public function getInventory() :DropperInventory{
+	public function getInventory() : DropperInventory{
 		return $this->inventory;
 	}
 

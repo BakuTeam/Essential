@@ -35,7 +35,6 @@ use pocketmine\network\mcpe\protocol\EmotePacket;
 use pocketmine\network\mcpe\protocol\MobArmorEquipmentPacket;
 use pocketmine\network\mcpe\protocol\MobEffectPacket;
 use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\RemoveActorPacket;
 use pocketmine\network\mcpe\protocol\SetActorDataPacket;
 use pocketmine\network\mcpe\protocol\TakeItemActorPacket;
@@ -45,7 +44,6 @@ use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
-use pocketmine\player\Player;
 use function array_map;
 use function count;
 use function ksort;
@@ -65,40 +63,40 @@ final class StandardEntityEventBroadcaster implements EntityEventBroadcaster{
 		$this->broadcaster->broadcastPackets($recipients, [$packet]);
 	}
 
-    public function syncAttributes(array $recipients, Living $entity, array $attributes) : void{
-        if(count($attributes) > 0){
-            $this->sendDataPacket($recipients, UpdateAttributesPacket::create(
-                $entity->getId(),
-                array_map(fn(Attribute $attr) => new UpdateAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getDefaultValue(), []), $attributes),
-                0
-            ));
-        }
-    }
+	public function syncAttributes(array $recipients, Living $entity, array $attributes) : void{
+		if(count($attributes) > 0){
+			$this->sendDataPacket($recipients, UpdateAttributesPacket::create(
+				$entity->getId(),
+				array_map(fn(Attribute $attr) => new UpdateAttribute($attr->getId(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getValue(), $attr->getMinValue(), $attr->getMaxValue(), $attr->getDefaultValue(), []), $attributes),
+				0
+			));
+		}
+	}
 
-    protected function convertAttributeId(string $runtimeId): ?int{
-        return match ($runtimeId) {
-            Attribute::ABSORPTION => 0,
-            Attribute::SATURATION => 1,
-            Attribute::EXHAUSTION => 2,
-            Attribute::KNOCKBACK_RESISTANCE => 3,
-            Attribute::HEALTH => 4,
-            Attribute::MOVEMENT_SPEED => 5,
-            Attribute::FOLLOW_RANGE => 6,
-            Attribute::HUNGER, Attribute::FOOD => 7,
-            Attribute::ATTACK_DAMAGE => 8,
-            Attribute::EXPERIENCE_LEVEL => 9,
-            Attribute::EXPERIENCE => 10,
-            Attribute::UNDERWATER_MOVEMENT => 11,
-            Attribute::LUCK => 12,
-            Attribute::FALL_DAMAGE => 13,
-            Attribute::HORSE_JUMP_STRENGTH => 14,
-            Attribute::ZOMBIE_SPAWN_REINFORCEMENTS => 15,
-            Attribute::LAVA_MOVEMENT => 16,
-            default => null,
-        };
-    }
+	protected function convertAttributeId(string $runtimeId) : ?int{
+		return match ($runtimeId) {
+			Attribute::ABSORPTION => 0,
+			Attribute::SATURATION => 1,
+			Attribute::EXHAUSTION => 2,
+			Attribute::KNOCKBACK_RESISTANCE => 3,
+			Attribute::HEALTH => 4,
+			Attribute::MOVEMENT_SPEED => 5,
+			Attribute::FOLLOW_RANGE => 6,
+			Attribute::HUNGER, Attribute::FOOD => 7,
+			Attribute::ATTACK_DAMAGE => 8,
+			Attribute::EXPERIENCE_LEVEL => 9,
+			Attribute::EXPERIENCE => 10,
+			Attribute::UNDERWATER_MOVEMENT => 11,
+			Attribute::LUCK => 12,
+			Attribute::FALL_DAMAGE => 13,
+			Attribute::HORSE_JUMP_STRENGTH => 14,
+			Attribute::ZOMBIE_SPAWN_REINFORCEMENTS => 15,
+			Attribute::LAVA_MOVEMENT => 16,
+			default => null,
+		};
+	}
 
-    public function syncActorData(array $recipients, Entity $entity, array $properties) : void{
+	public function syncActorData(array $recipients, Entity $entity, array $properties) : void{
 		//TODO: HACK! as of 1.18.10, the client responds differently to the same data ordered in different orders - for
 		//example, sending HEIGHT in the list before FLAGS when unsetting the SWIMMING flag results in a hitbox glitch
 		ksort($properties, SORT_NUMERIC);

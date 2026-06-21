@@ -1,13 +1,22 @@
 <?php
 
 /*
- * This file is part of BedrockProtocol.
- * Copyright (C) 2014-2022 PocketMine Team <https://github.com/pmmp/BedrockProtocol>
  *
- * BedrockProtocol is free software: you can redistribute it and/or modify
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
  */
 
 declare(strict_types=1);
@@ -131,7 +140,7 @@ class PacketSerializer extends BinaryStream{
 			$skinImage = $this->getSkinImage();
 			$animationType = $this->getLInt();
 			$animationFrames = $this->getLFloat();
-			
+
 			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_100){
 				$expressionType = $this->getLInt();
 			}
@@ -880,7 +889,7 @@ class PacketSerializer extends BinaryStream{
 
 		if($protocolId >= ProtocolInfo::PROTOCOL_1_21_130){
 			$result->playerActorUniqueId = $this->getLLong();
-		}elseif($result->type === CommandOriginData::ORIGIN_DEV_CONSOLE or $result->type === CommandOriginData::ORIGIN_TEST){
+		}elseif($result->type === CommandOriginData::ORIGIN_DEV_CONSOLE || $result->type === CommandOriginData::ORIGIN_TEST){
 			$result->playerActorUniqueId = $this->getVarLong();
 		}
 
@@ -898,7 +907,7 @@ class PacketSerializer extends BinaryStream{
 
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_130){
 			$this->putLLong($data->playerActorUniqueId);
-		}elseif($data->type === CommandOriginData::ORIGIN_DEV_CONSOLE or $data->type === CommandOriginData::ORIGIN_TEST){
+		}elseif($data->type === CommandOriginData::ORIGIN_DEV_CONSOLE || $data->type === CommandOriginData::ORIGIN_TEST){
 			$this->putVarLong($data->playerActorUniqueId);
 		}
 	}

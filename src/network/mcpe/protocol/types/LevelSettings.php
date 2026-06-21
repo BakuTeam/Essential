@@ -1,13 +1,22 @@
 <?php
 
 /*
- * This file is part of BedrockProtocol.
- * Copyright (C) 2014-2022 PocketMine Team <https://github.com/pmmp/BedrockProtocol>
  *
- * BedrockProtocol is free software: you can redistribute it and/or modify
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
  */
 
 declare(strict_types=1);
@@ -89,7 +98,7 @@ final class LevelSettings{
 	public static function read(PacketSerializer $in) : self{
 		//TODO: in the future we'll use promoted properties + named arguments for decoding, but for now we stick with
 		//this shitty way to limit BC breaks (needs more R&D)
-		$result = new self;
+		$result = new self();
 		$result->internalRead($in);
 		return $result;
 	}
@@ -198,7 +207,7 @@ final class LevelSettings{
 		$out->putBool($this->hasAchievementsDisabled);
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_30){
 			$out->putVarInt($this->editorWorldType);
-		}else if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_10){
+		}elseif($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_10){
 			$out->putBool($this->editorWorldType !== EditorWorldType::NON_EDITOR);
 		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_80){

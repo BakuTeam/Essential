@@ -30,12 +30,13 @@ use pocketmine\thread\Thread;
 use pocketmine\thread\Worker;
 use function implode;
 use function sprintf;
+use function strtoupper;
 use const PHP_EOL;
 
 class MainLogger extends AttachableThreadSafeLogger implements \BufferedLogger{
 	protected bool $logDebug;
 
-	private string $format = TextFormat::BOLD . TextFormat::WHITE . "%s " . TextFormat::RESET .  TextFormat::GREEN . TextFormat::BOLD . "[%s] " . TextFormat::RESET . TextFormat::WHITE . "[%s]:%s %s" . TextFormat::RESET;
+	private string $format = TextFormat::BOLD . TextFormat::WHITE . "%s " . TextFormat::RESET . TextFormat::GREEN . TextFormat::BOLD . "[%s] " . TextFormat::RESET . TextFormat::WHITE . "[%s]:%s %s" . TextFormat::RESET;
 	private bool $useFormattingCodes = false;
 	private string $mainThreadName;
 	private string $timezone;

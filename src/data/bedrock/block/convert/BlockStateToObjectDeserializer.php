@@ -1297,7 +1297,7 @@ final class BlockStateToObjectDeserializer implements BlockStateDeserializer{
 			$in->ignored(StateNames::DEPRECATED);
 			return Blocks::BEEHIVE()->setAxis($in->readPillarAxis());
 		});
-		
+
 		$this->map(Ids::BREWING_STAND, function(Reader $in) : Block{
 			return Blocks::BREWING_STAND()
 				->setSlot(BrewingStandSlot::EAST, $in->readBool(StateNames::BREWING_STAND_SLOT_A_BIT))

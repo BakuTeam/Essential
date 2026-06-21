@@ -72,6 +72,7 @@ use pocketmine\world\sound\TotemUseSound;
 use pocketmine\world\World;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
+use function array_diff;
 use function array_fill;
 use function array_filter;
 use function array_key_exists;

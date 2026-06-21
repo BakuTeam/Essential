@@ -1,13 +1,22 @@
 <?php
 
 /*
- * This file is part of BedrockProtocol.
- * Copyright (C) 2014-2022 PocketMine Team <https://github.com/pmmp/BedrockProtocol>
  *
- * BedrockProtocol is free software: you can redistribute it and/or modify
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
  */
 
 declare(strict_types=1);
@@ -48,7 +57,7 @@ class TextPacket extends DataPacket implements ClientboundPacket, ServerboundPac
 	public string $filteredMessage = "";
 
 	private static function messageOnly(int $type, string $message) : self{
-		$result = new self;
+		$result = new self();
 		$result->type = $type;
 		$result->message = $message;
 		return $result;
@@ -58,7 +67,7 @@ class TextPacket extends DataPacket implements ClientboundPacket, ServerboundPac
 	 * @param string[] $parameters
 	 */
 	private static function baseTranslation(int $type, string $key, array $parameters) : self{
-		$result = new self;
+		$result = new self();
 		$result->type = $type;
 		$result->needsTranslation = true;
 		$result->message = $key;
@@ -71,7 +80,7 @@ class TextPacket extends DataPacket implements ClientboundPacket, ServerboundPac
 	}
 
 	/**
-	 * @param string[]  $parameters
+	 * @param string[] $parameters
 	 */
 	public static function translation(string $key, array $parameters = []) : self{
 		return self::baseTranslation(self::TYPE_TRANSLATION, $key, $parameters);

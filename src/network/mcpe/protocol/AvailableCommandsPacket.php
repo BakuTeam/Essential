@@ -1,13 +1,22 @@
 <?php
 
 /*
- * This file is part of BedrockProtocol.
- * Copyright (C) 2014-2022 PocketMine Team <https://github.com/pmmp/BedrockProtocol>
  *
- * BedrockProtocol is free software: you can redistribute it and/or modify
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
  */
 
 declare(strict_types=1);
@@ -121,7 +130,7 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 	 * @param CommandEnumConstraint[] $enumConstraints
 	 */
 	public static function create(array $commandData, array $hardcodedEnums, array $softEnums, array $enumConstraints) : self{
-		$result = new self;
+		$result = new self();
 		$result->commandData = $commandData;
 		$result->hardcodedEnums = $hardcodedEnums;
 		$result->softEnums = $softEnums;
@@ -212,7 +221,6 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 				default => $type,
 			};
 		}
-
 
 		return match ($type) {
 			self::ARG_FLAG_VALID | self::ARG_TYPE_FLOAT => self::ARG_FLAG_VALID | 0x02,
@@ -360,7 +368,7 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 	}
 
 	/**
-	 * @param int[]       $enumValueMap
+	 * @param int[] $enumValueMap
 	 */
 	protected function putEnum(CommandEnum $enum, array $enumValueMap, PacketSerializer $out) : void{
 		$out->putString($enum->getName());
@@ -447,8 +455,8 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 	}
 
 	/**
-	 * @param int[]                 $enumIndexes string enum name -> int index
-	 * @param int[]                 $enumValueIndexes string value -> int index
+	 * @param int[] $enumIndexes      string enum name -> int index
+	 * @param int[] $enumValueIndexes string value -> int index
 	 */
 	protected function putEnumConstraint(CommandEnumConstraint $constraint, array $enumIndexes, array $enumValueIndexes, PacketSerializer $out) : void{
 		$out->putLInt($enumValueIndexes[$constraint->getAffectedValue()]);
@@ -524,7 +532,7 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 	}
 
 	/**
-	 * @param int[] $enumIndexes string enum name -> int index
+	 * @param int[] $enumIndexes                  string enum name -> int index
 	 * @param int[] $softEnumIndexes
 	 * @param int[] $postfixIndexes
 	 * @param int[] $chainedSubCommandDataIndexes
@@ -538,7 +546,7 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 		}else{
 			$out->putByte($data->flags);
 		}
-		
+
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_130){
 			$out->putString(CommandPermissions::toName($data->permission));
 		}else{
@@ -556,7 +564,7 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 			foreach($data->chainedSubCommandData as $chainedSubCommandData){
 				$index = $chainedSubCommandDataIndexes[$chainedSubCommandData->getName()] ??
 					throw new \LogicException("Chained subcommand data {$chainedSubCommandData->getName()} does not have an index (this should be impossible)");
-				
+
 				if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_130){
 					$out->putLInt($index);
 				}else{
@@ -731,7 +739,7 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 				foreach($chainedSubCommandData->getValues() as $value){
 					$valueNameIndex = $chainedSubCommandValueNameIndexes[$value->getName()] ??
 						throw new \LogicException("Chained subcommand value name index for \"" . $value->getName() . "\" not found (this should never happen)");
-					
+
 					if ($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_130) {
 						$out->putUnsignedVarInt($valueNameIndex);
 						$out->putUnsignedVarInt($value->getType());

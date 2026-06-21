@@ -74,7 +74,7 @@ final class ItemTypeDictionaryFromDataHelper{
 		ProtocolInfo::PROTOCOL_1_20_10 => "-1.20.10",
 
 		ProtocolInfo::PROTOCOL_1_20_0 => "-1.20.0",
-		
+
 		ProtocolInfo::PROTOCOL_1_19_80 => "-1.19.80",
 
 		ProtocolInfo::PROTOCOL_1_19_70 => "-1.19.70",

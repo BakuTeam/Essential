@@ -129,7 +129,6 @@ use Ramsey\Uuid\UuidInterface;
 use Symfony\Component\Filesystem\Path;
 use function array_fill;
 use function array_sum;
-use function base64_encode;
 use function chr;
 use function cli_set_process_title;
 use function copy;
@@ -138,18 +137,14 @@ use function date;
 use function fclose;
 use function file_exists;
 use function file_put_contents;
-use function filemtime;
 use function fopen;
 use function get_class;
 use function gettype;
 use function ini_set;
 use function is_array;
 use function is_dir;
-use function is_int;
-use function is_object;
 use function is_resource;
 use function is_string;
-use function json_decode;
 use function max;
 use function microtime;
 use function min;
@@ -163,11 +158,8 @@ use function round;
 use function sleep;
 use function spl_object_id;
 use function sprintf;
-use function str_repeat;
-use function str_replace;
 use function stripos;
 use function strlen;
-use function strrpos;
 use function strtolower;
 use function strval;
 use function time;
@@ -903,7 +895,6 @@ class Server{
 				}
 			}
 
-
 			$this->memoryManager = new MemoryManager($this);
 
 			$this->logger->info("Starting Server for Minecraft Bedrock Edition v1.16.100 - " . ProtocolInfo::MINECRAFT_VERSION_NETWORK);
@@ -1038,7 +1029,7 @@ class Server{
 			}
 			$this->pluginManager = new PluginManager($this, $this->configGroup->getPropertyBool(Yml::PLUGINS_LEGACY_DATA_DIR, true) ? null : Path::join($this->dataPath, "plugin_data"), $pluginGraylist);
 			$this->pluginManager->registerInterface(new PharPluginLoader($this->autoloader));
-                        $this->pluginManager->registerInterface(new FolderPluginLoader($this->autoloader));
+						$this->pluginManager->registerInterface(new FolderPluginLoader($this->autoloader));
 			$this->pluginManager->registerInterface(new ScriptPluginLoader());
 
 			$providerManager = new WorldProviderManager();
@@ -1667,7 +1658,6 @@ class Server{
 				$this->logger->critical($this->language->translate(KnownTranslationFactory::pocketmine_crash_error($e->getMessage())));
 			}catch(\Throwable $e){}
 		}
-
 
 		//$this->forceShutdown();
 		//$this->isRunning = false;

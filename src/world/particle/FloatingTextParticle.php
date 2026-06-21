@@ -50,6 +50,8 @@ use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\network\mcpe\protocol\UpdateAbilitiesPacket;
 use Ramsey\Uuid\Uuid;
+use function array_fill;
+use function str_repeat;
 
 class FloatingTextParticle extends ProtocolParticle{
 	//TODO: HACK!
@@ -131,7 +133,6 @@ class FloatingTextParticle extends ProtocolParticle{
 			$remove->type = PlayerListPacket::TYPE_REMOVE;
 			$remove->entries = [PlayerListEntry::createRemovalEntry($uuid)];
 			$p[] = $remove;
-
 
 			//pm5 codes
 			// $name = $this->title . ($this->text !== "" ? "\n" . $this->text : "");

@@ -1,13 +1,22 @@
 <?php
 
 /*
- * This file is part of BedrockProtocol.
- * Copyright (C) 2014-2022 PocketMine Team <https://github.com/pmmp/BedrockProtocol>
  *
- * BedrockProtocol is free software: you can redistribute it and/or modify
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
  */
 
 declare(strict_types=1);
@@ -78,10 +87,10 @@ class EntityMetadataCollection{
 	}
 
 	public function set(int $key, MetadataProperty $value, bool $force = false) : void{
-		if(!$force and isset($this->properties[$key]) and !($this->properties[$key] instanceof $value)){
+		if(!$force && isset($this->properties[$key]) && !($this->properties[$key] instanceof $value)){
 			throw new \InvalidArgumentException("Can't overwrite property with mismatching types (have " . get_class($this->properties[$key]) . ")");
 		}
-		if(!isset($this->properties[$key]) or !$this->properties[$key]->equals($value)){
+		if(!isset($this->properties[$key]) || !$this->properties[$key]->equals($value)){
 			$this->properties[$key] = $this->dirtyProperties[$key] = $value;
 		}
 	}
@@ -96,13 +105,13 @@ class EntityMetadataCollection{
 		$anyDirty = false;
 		if(!$force){
 			foreach($properties as $key => $value){
-				if(isset($this->properties[$key]) and !($this->properties[$key] instanceof $value)){
+				if(isset($this->properties[$key]) && !($this->properties[$key] instanceof $value)){
 					throw new \InvalidArgumentException("Can't overwrite " . get_class($this->properties[$key]) . " with " . get_debug_type($value));
 				}
 			}
 		}
 		foreach($properties as $key => $value){
-			if(!isset($this->properties[$key]) or !$this->properties[$key]->equals($value)){
+			if(!isset($this->properties[$key]) || !$this->properties[$key]->equals($value)){
 				$anyDirty = true;
 				break;
 			}

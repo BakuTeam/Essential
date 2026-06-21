@@ -62,7 +62,7 @@ class Grindstone extends Spawnable implements Container, Nameable{
 		return "Grindstone";
 	}
 
-	public function getInventory() :GrindstoneInventory{
+	public function getInventory() : GrindstoneInventory{
 		return $this->inventory;
 	}
 

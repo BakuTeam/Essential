@@ -38,7 +38,10 @@ use pocketmine\utils\BinaryStream;
 use pocketmine\world\format\Chunk;
 use pocketmine\world\format\PalettedBlockArray;
 use pocketmine\world\format\SubChunk;
+use function chr;
 use function count;
+use function min;
+use function str_repeat;
 
 final class ChunkSerializer{
 
@@ -182,7 +185,7 @@ final class ChunkSerializer{
 
 			self::serializeBiomes($chunk, $dimensionId, $stream);
 			self::serializeChunkData($chunk, $stream, $typeConverter, $tiles);
-			
+
 		} else {
 			$subChunkCount = min(self::getSubChunkCount($chunk, $dimensionId), 16);
 
@@ -298,7 +301,7 @@ final class ChunkSerializer{
 						if($networkId === $infoUpdateNetworkId && $fallbackBlockId > 0){
 							$networkId = $fallbackBlockId;
 						}
-					
+
 						$stream->put(Binary::writeVarInt($networkId));
 					}catch(\Throwable $e){
 						$stream->put(Binary::writeVarInt($fallbackBlockId));

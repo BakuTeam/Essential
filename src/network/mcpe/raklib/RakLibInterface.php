@@ -52,6 +52,7 @@ use raklib\server\ServerEventListener;
 use raklib\utils\InternetAddress;
 use function addcslashes;
 use function base64_encode;
+use function get_class;
 use function implode;
 use function mt_rand;
 use function rtrim;
@@ -226,10 +227,10 @@ class RakLibInterface implements ServerEventListener, AdvancedNetworkInterface{
 			}catch(\Throwable $e){
 				$this->server->getLogger()->emergency("Crash occurred while handling a packet from session: $name");
 				$this->server->getLogger()->emergency(get_class($e));
-			 	$this->server->getLogger()->emergency("Message: " . $e->getMessage());
+				$this->server->getLogger()->emergency("Message: " . $e->getMessage());
 				$this->server->getLogger()->emergency("File: " . $e->getFile() . " (Line: " . $e->getLine() . ")");
 				$this->server->getLogger()->emergency("Trace:\n" . $e->getTraceAsString());
-				
+
 			}
 		}
 	}

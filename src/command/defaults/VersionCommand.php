@@ -24,19 +24,9 @@ declare(strict_types=1);
 namespace pocketmine\command\defaults;
 
 use pocketmine\command\CommandSender;
-use pocketmine\lang\KnownTranslationFactory;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\permission\DefaultPermissionNames;
-use pocketmine\plugin\Plugin;
-use pocketmine\utils\TextFormat;
-use pocketmine\utils\Utils;
 use pocketmine\VersionInfo;
-use function count;
-use function implode;
-use function sprintf;
-use function stripos;
-use function strtolower;
-use const PHP_VERSION;
 
 class VersionCommand extends VanillaCommand{
 

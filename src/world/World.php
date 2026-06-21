@@ -132,6 +132,7 @@ use function count;
 use function floor;
 use function get_class;
 use function gettype;
+use function in_array;
 use function is_a;
 use function is_object;
 use function max;
@@ -379,7 +380,7 @@ class World implements ChunkManager{
 
 	private bool $doingTick = false;
 
-	/** @phpstan-var class-string<\pocketmine\world\generator\Generator> */
+	/** @phpstan-var class-string<generator\Generator> */
 	private string $generator;
 
 	private bool $unloaded = false;
@@ -2581,7 +2582,7 @@ class World implements ChunkManager{
 		}
 
 		$item->pop();
-		
+
 		// As long as we are only syncing the relevant blocks to the actual placement, this should be fine.
 		$player?->syncBlocks($placementSyncBlocks);
 

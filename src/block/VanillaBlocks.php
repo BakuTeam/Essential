@@ -41,6 +41,7 @@ use pocketmine\block\tile\Chest as TileChest;
 use pocketmine\block\tile\ChiseledBookshelf as TileChiseledBookshelf;
 use pocketmine\block\tile\Comparator as TileComparator;
 use pocketmine\block\tile\DaylightSensor as TileDaylightSensor;
+use pocketmine\block\tile\Dropper as TileDropper;
 use pocketmine\block\tile\EnchantTable as TileEnchantingTable;
 use pocketmine\block\tile\EnderChest as TileEnderChest;
 use pocketmine\block\tile\FlowerPot as TileFlowerPot;
@@ -52,7 +53,6 @@ use pocketmine\block\tile\Jukebox as TileJukebox;
 use pocketmine\block\tile\Lectern as TileLectern;
 use pocketmine\block\tile\MobHead as TileMobHead;
 use pocketmine\block\tile\MonsterSpawner as TileMonsterSpawner;
-use pocketmine\block\tile\Dropper as TileDropper;
 use pocketmine\block\tile\NormalFurnace as TileNormalFurnace;
 use pocketmine\block\tile\Note as TileNote;
 use pocketmine\block\tile\Scaffolding as TileScaffolding;
@@ -1093,7 +1093,7 @@ final class VanillaBlocks{
 
 		self::register("observer", fn(BID $id) => new Observer($id, "Observer", new Info(BreakInfo::pickaxe(5.0, ToolTier::WOOD, 30.0))));
 
-		self::register("beehive", fn(BID $id) => new BeeHive($id, "Bee Hive", new Info(BreakInfo::pickaxe(5.0, ToolTier::WOOD, 30.0)))); 
+		self::register("beehive", fn(BID $id) => new BeeHive($id, "Bee Hive", new Info(BreakInfo::pickaxe(5.0, ToolTier::WOOD, 30.0))));
 
 		self::register("rail", fn(BID $id) => new Rail($id, "Rail", $railBreakInfo));
 		self::register("red_mushroom", fn(BID $id) => new RedMushroom($id, "Red Mushroom", new Info(BreakInfo::instant(), [Tags::POTTABLE_PLANTS])));

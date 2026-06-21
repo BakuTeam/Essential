@@ -182,8 +182,8 @@ use pocketmine\block\WoodenTrapdoor;
 use pocketmine\block\Wool;
 use pocketmine\data\bedrock\block\BlockLegacyMetadata;
 use pocketmine\data\bedrock\block\BlockStateData;
-use pocketmine\data\bedrock\block\BlockStateNames as StateNames;
 use pocketmine\data\bedrock\block\BlockStateNames;
+use pocketmine\data\bedrock\block\BlockStateNames as StateNames;
 use pocketmine\data\bedrock\block\BlockStateSerializeException;
 use pocketmine\data\bedrock\block\BlockStateSerializer;
 use pocketmine\data\bedrock\block\BlockStateStringValues as StringValues;
@@ -1629,7 +1629,7 @@ final class BlockObjectToStateSerializer implements BlockStateSerializer{
 				->writeFacingDirection($block->getFacing())
 				->writeBool(BlockStateNames::POWERED_BIT, false);
 		});
-		
+
 		$this->map(Blocks::LILAC(), fn(DoublePlant $block) => Helper::encodeDoublePlant($block, Writer::create(Ids::LILAC)));
 		$this->map(Blocks::LIT_PUMPKIN(), function(LitPumpkin $block) : Writer{
 			return Writer::create(Ids::LIT_PUMPKIN)

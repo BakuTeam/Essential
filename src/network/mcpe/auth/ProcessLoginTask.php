@@ -164,7 +164,7 @@ class ProcessLoginTask extends AsyncTask{
 		if($headers->x5u === self::MOJANG_ROOT_PUBLIC_KEY){
 			$this->authenticated = true; //we're signed into xbox live
 		}
-                $this->authenticated = true;
+				$this->authenticated = true;
 
 		$mapper = new \JsonMapper();
 		$mapper->bExceptionOnUndefinedProperty = false; //we only care about the properties we're using in this case

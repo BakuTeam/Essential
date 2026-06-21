@@ -1,13 +1,22 @@
 <?php
 
 /*
- * This file is part of BedrockProtocol.
- * Copyright (C) 2014-2022 PocketMine Team <https://github.com/pmmp/BedrockProtocol>
  *
- * BedrockProtocol is free software: you can redistribute it and/or modify
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
+ * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ *
+ * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
+ *
+ * @author PocketMine Team
+ * @link http://www.pocketmine.net/
+ *
+ *
  */
 
 declare(strict_types=1);
@@ -59,10 +68,10 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 	private Vector3 $cameraOrientation;
 	private Vector2 $rawMoveVector;
 
-        /**
-	 * @generate-create-func
-	 * @param PlayerBlockAction[] $blockActions
-	 */
+		/**
+		 * @generate-create-func
+		 * @param PlayerBlockAction[] $blockActions
+		 */
 	private static function internalCreate(
 		Vector3 $position,
 		float $pitch,
@@ -87,7 +96,7 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		Vector3 $cameraOrientation,
 		Vector2 $rawMoveVector,
 	) : self{
-		$result = new self;
+		$result = new self();
 		$result->position = $position;
 		$result->pitch = $pitch;
 		$result->yaw = $yaw;
@@ -114,12 +123,12 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 	}
 
 	/**
-	 * @param int                      $inputFlags @see PlayerAuthInputFlags
-	 * @param int                      $inputMode @see InputMode
-	 * @param int                      $playMode @see PlayMode
+	 * @param int                      $inputFlags      @see PlayerAuthInputFlags
+	 * @param int                      $inputMode       @see InputMode
+	 * @param int                      $playMode        @see PlayMode
 	 * @param int                      $interactionMode @see InteractionMode
 	 * @param Vector3|null             $vrGazeDirection only used when PlayMode::VR
-	 * @param PlayerBlockAction[]|null $blockActions Blocks that the client has interacted with
+	 * @param PlayerBlockAction[]|null $blockActions    Blocks that the client has interacted with
 	 */
 	public static function create(
 		Vector3 $position,
@@ -146,7 +155,7 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		Vector2 $rawMoveVector,
 	) : self{
 
-		if($playMode === PlayMode::VR and $vrGazeDirection === null){
+		if($playMode === PlayMode::VR && $vrGazeDirection === null){
 			//yuck, can we get a properly written packet just once? ...
 			throw new \InvalidArgumentException("Gaze direction must be provided for VR play mode");
 		}
@@ -212,18 +221,18 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		return $this->moveVecZ;
 	}
 
-	public function getVehicleVecX(): float {
+	public function getVehicleVecX() : float {
 		return $this->vehicleVecX;
 	}
 
-	public function getVehicleVecZ(): float {
+	public function getVehicleVecZ() : float {
 		return $this->vehicleVecZ;
 	}
 
 	/**
 	 * @see PlayerAuthInputFlags
 	 */
-	public function getInputFlags(): int{
+	public function getInputFlags() : int{
 		$flags = $this->inputFlags & ~(
 			(1 << PlayerAuthInputFlags::PERFORM_ITEM_STACK_REQUEST) |
 			(1 << PlayerAuthInputFlags::PERFORM_ITEM_INTERACTION) |
@@ -271,9 +280,8 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		return $this->vrGazeDirection;
 	}
 
-
-	public function getInteractRotation() : Vector2{ 
-		return $this->interactRotation; 
+	public function getInteractRotation() : Vector2{
+		return $this->interactRotation;
 	}
 
 	public function getTick() : int{
@@ -331,7 +339,7 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		}elseif($this->playMode === PlayMode::VR){
 			$this->vrGazeDirection = $in->getVector3();
 		}
-		
+
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_100){
 			$this->tick = $in->getUnsignedVarLong();
 			$this->delta = $in->getVector3();
@@ -363,9 +371,9 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 				$this->vehicleVecX = $in->getLFloat();
 				$this->vehicleVecZ = $in->getLFloat();
 			}
-			
+
 			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_60){
-			    $this->clientPredictedVehicleActorUniqueId = $in->getActorUniqueId();
+				$this->clientPredictedVehicleActorUniqueId = $in->getActorUniqueId();
 			}
 		}
 
@@ -436,7 +444,7 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_70){
 			$out->putLFloat($this->analogMoveVecX);
 			$out->putLFloat($this->analogMoveVecZ);
-			
+
 			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_40){
 				$out->putVector3($this->cameraOrientation);
 

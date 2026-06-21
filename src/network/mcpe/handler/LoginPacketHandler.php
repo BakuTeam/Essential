@@ -56,6 +56,7 @@ use function is_string;
 use function json_decode;
 use function md5;
 use function ord;
+use function preg_match;
 use const JSON_THROW_ON_ERROR;
 
 /**

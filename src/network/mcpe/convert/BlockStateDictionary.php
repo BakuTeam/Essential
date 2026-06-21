@@ -43,6 +43,8 @@ use function is_int;
 use function is_string;
 use function json_decode;
 use function ksort;
+use function ltrim;
+use function str_starts_with;
 use const JSON_THROW_ON_ERROR;
 
 /**
@@ -204,7 +206,7 @@ final class BlockStateDictionary{
 			}
 
 			$name = $entry["name"];
-			$version = (int)($entry["version"] ?? BlockStateData::CURRENT_VERSION);
+			$version = (int) ($entry["version"] ?? BlockStateData::CURRENT_VERSION);
 
 			$stateTags = [];
 
@@ -214,24 +216,24 @@ final class BlockStateDictionary{
 				}
 
 				$key = $state["name"];
-				$type = (int)$state["type"];
+				$type = (int) $state["type"];
 				$value = $state["value"];
 
 				switch ($type) {
 					case 1: // Byte
-						$tag = new \pocketmine\nbt\tag\ByteTag((int)$value);
+						$tag = new \pocketmine\nbt\tag\ByteTag((int) $value);
 						break;
 					case 2: // Short
-						$tag = new \pocketmine\nbt\tag\ShortTag((int)$value);
+						$tag = new \pocketmine\nbt\tag\ShortTag((int) $value);
 						break;
 					case 3: // Int
-						$tag = new \pocketmine\nbt\tag\IntTag((int)$value);
+						$tag = new \pocketmine\nbt\tag\IntTag((int) $value);
 						break;
 					case 4: // Long
-						$tag = new \pocketmine\nbt\tag\LongTag((int)$value);
+						$tag = new \pocketmine\nbt\tag\LongTag((int) $value);
 						break;
 					case 8: // String
-						$tag = new \pocketmine\nbt\tag\StringTag((string)$value);
+						$tag = new \pocketmine\nbt\tag\StringTag((string) $value);
 						break;
 					default:
 						throw new \InvalidArgumentException("Unknown NBT type $type for state $key in $name");
