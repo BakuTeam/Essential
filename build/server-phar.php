@@ -163,7 +163,6 @@ function main() : void{
 				$pharPath,
 				dirname(__DIR__) . DIRECTORY_SEPARATOR,
 				[
-					'generated',
 					'resources',
 					'src',
 					'vendor'
