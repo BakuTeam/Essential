@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\convert;
 
+use InvalidArgumentException;
+use pocketmine\data\bedrock\block\BlockStateData;
+use pocketmine\data\bedrock\block\BlockTypeNames;
 use pocketmine\data\bedrock\item\BlockItemIdMap;
 use pocketmine\data\bedrock\item\downgrade\ItemIdMetaDowngrader;
 use pocketmine\data\bedrock\item\ItemDeserializer;
@@ -77,8 +80,12 @@ final class ItemTranslator{
 
 		try {
 			$numericId = $this->itemTypeDictionary->fromStringId($itemData->getName());
-		} catch (\InvalidArgumentException) {
-			throw new ItemTypeSerializeException("Unknown item type " . $itemData->getName());
+		} catch (InvalidArgumentException) {
+			try {
+				$numericId = $this->itemTypeDictionary->fromStringId("minecraft:dirt");
+			} catch (InvalidArgumentException) {
+				throw new ItemTypeSerializeException("Unknown item type " . $itemData->getName() . " and fallback dirt also missing");
+			}
 		}
 
 		$blockStateData = $itemData->getBlock();
@@ -86,7 +93,10 @@ final class ItemTranslator{
 		if($blockStateData !== null){
 			$blockRuntimeId = $this->blockStateDictionary->lookupStateIdFromData($blockStateData);
 			if($blockRuntimeId === null){
-				throw new AssumptionFailedError("Unmapped blockstate returned by blockstate serializer: " . $blockStateData->toNbt());
+				$blockRuntimeId = $this->blockStateDictionary->lookupStateIdFromData(BlockStateData::current(BlockTypeNames::DIRT, []));
+				if ($blockRuntimeId === null) {
+					throw new AssumptionFailedError("Unmapped blockstate returned by blockstate serializer: " . $blockStateData->toNbt() . " and fallback dirt missing");
+				}
 			}
 		}else{
 			$blockRuntimeId = null;
@@ -111,7 +121,7 @@ final class ItemTranslator{
 	public function fromNetworkId(int $networkId, int $networkMeta, int $networkBlockRuntimeId) : Item{
 		try{
 			$stringId = $this->itemTypeDictionary->fromIntId($networkId);
-		}catch(\InvalidArgumentException $e){
+		}catch(InvalidArgumentException $e){
 			//TODO: a quiet version of fromIntId() would be better than catching InvalidArgumentException
 			throw TypeConversionException::wrap($e, "Invalid network itemstack ID $networkId");
 		}
