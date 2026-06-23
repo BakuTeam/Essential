@@ -650,11 +650,11 @@ class PacketSerializer extends BinaryStream{
 	 * @phpstan-param array<int, MetadataProperty> $metadata
 	 */
 	public function putEntityMetadata(array $metadata) : void{
-		$data = EntityMetadataProperties::encode($metadata, $this->getProtocolId());
-		//$data = EntityMetadataFlags::encode($data, $this->getProtocolId());
+		$data = EntityMetadataFlags::encode($metadata, $this->getProtocolId());
+		$data = EntityMetadataProperties::encode($data, $this->getProtocolId());
 
 		$this->putUnsignedVarInt(count($data));
-		foreach($metadata as $key => $d){
+		foreach($data as $key => $d){
 			$this->putUnsignedVarInt($key);
 			$this->putUnsignedVarInt($d->getTypeId());
 			$d->write($this);
