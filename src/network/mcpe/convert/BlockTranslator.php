@@ -285,9 +285,9 @@ final class BlockTranslator{
 		private BlockStateDictionary $blockStateDictionary,
 		private BlockStateSerializer $blockStateSerializer
 	){
-		$this->fallbackStateData = BlockStateData::current(BlockTypeNames::INFO_UPDATE, []);
+		$this->fallbackStateData = BlockStateData::current(BlockTypeNames::DIRT, []);
 		$this->fallbackStateId = $this->blockStateDictionary->lookupStateIdFromData($this->fallbackStateData) ??
-			throw new AssumptionFailedError(BlockTypeNames::INFO_UPDATE . " should always exist");
+			throw new AssumptionFailedError(BlockTypeNames::DIRT . " should always exist");
 	}
 
 	public function internalIdToNetworkId(int $internalStateId) : int{
