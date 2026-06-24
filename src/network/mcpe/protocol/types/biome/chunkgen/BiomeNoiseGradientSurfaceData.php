@@ -23,8 +23,10 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types\biome\chunkgen;
 
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use function count;
+use function is_int;
 
 final class BiomeNoiseGradientSurfaceData{
 
@@ -67,8 +69,9 @@ final class BiomeNoiseGradientSurfaceData{
 		}
 
 		$gradientBlocks = [];
+		$useSpecifier = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30;
 		for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
-			$gradientBlocks[] = $in->getLInt();
+			$gradientBlocks[] = $useSpecifier ? BiomeNoiseBlockSpecifier::read($in) : $in->getLInt();
 		}
 
 		$noiseSeed = $in->getString();
@@ -89,8 +92,13 @@ final class BiomeNoiseGradientSurfaceData{
 		}
 
 		$out->putUnsignedVarInt(count($this->gradientBlocks));
+		$useSpecifier = $out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30;
 		foreach($this->gradientBlocks as $value){
-			$out->putLInt($value);
+			if($useSpecifier && $value instanceof BiomeNoiseBlockSpecifier){
+				$value->write($out);
+			}else{
+				$out->putLInt(is_int($value) ? $value : 0);
+			}
 		}
 
 		$out->putString($this->noiseSeed);

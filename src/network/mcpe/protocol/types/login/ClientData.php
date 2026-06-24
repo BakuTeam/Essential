@@ -87,6 +87,12 @@ final class ClientData{
 	/** >= PROTOCOL_1_19_10 */
 	public bool $IsEditorMode;
 
+	/** >= PROTOCOL_1_26_30 (replaces IsEditorMode) */
+	public bool $ClientIsEditorCapable;
+
+	/** >= PROTOCOL_1_26_30 */
+	public int $ClientEditorConnectionIntent;
+
 	/** @required */
 	public string $LanguageCode;
 

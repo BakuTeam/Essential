@@ -27,6 +27,7 @@ use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\types\EntityDiagnosticTimingInfo;
 use pocketmine\network\mcpe\protocol\types\MemoryCategoryCounter;
 use pocketmine\network\mcpe\protocol\types\SystemDiagnosticTimingInfo;
+use pocketmine\network\mcpe\protocol\types\WhiskerScopeDataSummary;
 use function count;
 
 class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPacket{
@@ -56,6 +57,11 @@ class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPack
 	 * @phpstan-var list<SystemDiagnosticTimingInfo>
 	 */
 	private array $systemDiagnostics = [];
+	/**
+	 * @var WhiskerScopeDataSummary[]
+	 * @phpstan-var list<WhiskerScopeDataSummary>
+	 */
+	private array $whiskerScopes = [];
 
 	/**
 	 * @generate-create-func
@@ -126,6 +132,12 @@ class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPack
 	 */
 	public function getSystemDiagnostics() : array{ return $this->systemDiagnostics; }
 
+	/**
+	 * @return WhiskerScopeDataSummary[]
+	 * @phpstan-return list<WhiskerScopeDataSummary>
+	 */
+	public function getWhiskerScopes() : array{ return $this->whiskerScopes; }
+
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->avgFps = $in->getLFloat();
 		$this->avgServerSimTickTimeMS = $in->getLFloat();
@@ -150,6 +162,13 @@ class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPack
 				$this->systemDiagnostics = [];
 				for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
 					$this->systemDiagnostics[] = SystemDiagnosticTimingInfo::read($in);
+				}
+
+				if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+					$this->whiskerScopes = [];
+					for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+						$this->whiskerScopes[] = WhiskerScopeDataSummary::read($in);
+					}
 				}
 			}
 		}
@@ -179,6 +198,13 @@ class ServerboundDiagnosticsPacket extends DataPacket implements ServerboundPack
 				$out->putUnsignedVarInt(count($this->systemDiagnostics));
 				foreach($this->systemDiagnostics as $value){
 					$value->write($out);
+				}
+
+				if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+					$out->putUnsignedVarInt(count($this->whiskerScopes));
+					foreach($this->whiskerScopes as $value){
+						$value->write($out);
+					}
 				}
 			}
 		}

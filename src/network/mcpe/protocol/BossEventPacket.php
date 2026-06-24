@@ -51,13 +51,13 @@ class BossEventPacket extends DataPacket implements ClientboundPacket, Serverbou
 	public int $bossActorUniqueId;
 	public int $eventType;
 
-	public int $playerActorUniqueId;
-	public float $healthPercent;
-	public string $title;
-	public string $filteredTitle;
-	public bool $darkenScreen;
-	public int $color;
-	public int $overlay;
+	public int $playerActorUniqueId = 0;
+	public float $healthPercent = 0.0;
+	public string $title = "";
+	public string $filteredTitle = "";
+	public bool $darkenScreen = false;
+	public int $color = 0;
+	public int $overlay = 0;
 
 	private static function base(int $bossActorUniqueId, int $eventId) : self{
 		$result = new self();
@@ -122,6 +122,16 @@ class BossEventPacket extends DataPacket implements ClientboundPacket, Serverbou
 
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->bossActorUniqueId = $in->getActorUniqueId();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$this->playerActorUniqueId = $in->getActorUniqueId();
+			$this->eventType = $in->getByte();
+			$this->title = $in->getString();
+			$this->filteredTitle = $in->getString();
+			$this->healthPercent = $in->getLFloat();
+			$this->color = $in->getByte();
+			$this->overlay = $in->getByte();
+			return;
+		}
 		$this->eventType = $in->getUnsignedVarInt();
 		switch($this->eventType){
 			case self::TYPE_REGISTER_PLAYER:
@@ -163,6 +173,16 @@ class BossEventPacket extends DataPacket implements ClientboundPacket, Serverbou
 
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putActorUniqueId($this->bossActorUniqueId);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$out->putActorUniqueId($this->playerActorUniqueId);
+			$out->putByte($this->eventType);
+			$out->putString($this->title);
+			$out->putString($this->filteredTitle);
+			$out->putLFloat($this->healthPercent);
+			$out->putByte($this->color);
+			$out->putByte($this->overlay);
+			return;
+		}
 		$out->putUnsignedVarInt($this->eventType);
 		switch($this->eventType){
 			case self::TYPE_REGISTER_PLAYER:
