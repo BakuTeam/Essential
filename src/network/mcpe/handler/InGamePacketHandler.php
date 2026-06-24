@@ -278,7 +278,12 @@ class InGamePacketHandler extends PacketHandler{
 
 			$this->inventoryManager->setCurrentItemStackRequestId($useItemTransaction->getRequestId());
 			$this->inventoryManager->addRawPredictedSlotChanges($useItemTransaction->getTransactionData()->getActions());
-			if(!$this->handleUseItemTransaction($useItemTransaction->getTransactionData())){
+			if($this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+				//1.26.30+ no longer carries use-item data (action type, item in hand, etc.) in
+				//PlayerAuthInputPacket's item interaction - it only carries predicted inventory slot
+				//changes. The actual use action now arrives via a standalone InventoryTransactionPacket.
+				$this->inventoryManager->syncMismatchedPredictedSlotChanges();
+			}elseif(!$this->handleUseItemTransaction($useItemTransaction->getTransactionData())){
 				$packetHandled = false;
 				$this->session->getLogger()->debug("Unhandled transaction in PlayerAuthInputPacket (type " . $useItemTransaction->getTransactionData()->getActionType() . ")");
 			}else{

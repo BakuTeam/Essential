@@ -73,6 +73,42 @@ abstract class TransactionData{
 	}
 
 	/**
+	 * Decodes the transaction as embedded in PlayerAuthInputPacket's item interaction data.
+	 *
+	 * Since 1.26.30 this is NOT the same wire format as {@see self::decode()}: the auth-input
+	 * variant carries only the inventory actions (in the legacy format) and none of the use-item
+	 * payload (action type, block position, item in hand, etc.), which now travels exclusively via
+	 * the standalone InventoryTransactionPacket.
+	 *
+	 * @throws BinaryDataException
+	 * @throws PacketDecodeException
+	 */
+	final public function decodeAuthInput(PacketSerializer $stream) : void{
+		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$actionCount = $stream->getUnsignedVarInt();
+			for($i = 0; $i < $actionCount; ++$i){
+				$this->actions[] = (new NetworkInventoryAction())->readAuthInput($stream);
+			}
+			return;
+		}
+
+		//older protocols use the same format for both auth-input and standalone transactions
+		$this->decode($stream);
+	}
+
+	final public function encodeAuthInput(PacketSerializer $stream) : void{
+		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$stream->putUnsignedVarInt(count($this->actions));
+			foreach($this->actions as $action){
+				$action->writeAuthInput($stream);
+			}
+			return;
+		}
+
+		$this->encode($stream);
+	}
+
+	/**
 	 * @throws BinaryDataException
 	 * @throws PacketDecodeException
 	 */
@@ -81,14 +117,13 @@ abstract class TransactionData{
 	final public function encode(PacketSerializer $stream) : void{
 
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
-			$stream->putBool($hasValue = count($this->actions) > 0);
-			if($hasValue){
-				$stream->putUnsignedVarInt(count($this->actions));
-				foreach($this->actions as $action){
-					$action->write($stream, false);
-				}
-				$this->encodeData($stream);
+			//the dummy optional bool for trData is always present (1) in the standalone transaction format
+			$stream->putBool(true);
+			$stream->putUnsignedVarInt(count($this->actions));
+			foreach($this->actions as $action){
+				$action->write($stream, false);
 			}
+			$this->encodeData($stream);
 			return;
 		}
 

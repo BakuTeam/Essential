@@ -92,7 +92,7 @@ class UseItemTransactionData extends TransactionData{
 
 	protected function decodeData(PacketSerializer $stream) : void{
 		$is2630 = $stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30;
-		$this->actionType = $stream->getUnsignedVarInt();
+		$this->actionType = $is2630 ? $stream->getVarInt() : $stream->getUnsignedVarInt();
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20){
 			$this->triggerType = TriggerType::fromPacket($is2630 ? $stream->getByte() : $stream->getUnsignedVarInt());
 		}
@@ -115,7 +115,11 @@ class UseItemTransactionData extends TransactionData{
 
 	protected function encodeData(PacketSerializer $stream) : void{
 		$is2630 = $stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30;
-		$stream->putUnsignedVarInt($this->actionType);
+		if($is2630){
+			$stream->putVarInt($this->actionType);
+		}else{
+			$stream->putUnsignedVarInt($this->actionType);
+		}
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20){
 			if($is2630){
 				$stream->putByte($this->triggerType->value);

@@ -71,7 +71,9 @@ class UseItemOnEntityTransactionData extends TransactionData{
 
 	protected function decodeData(PacketSerializer $stream) : void{
 		$this->actorRuntimeId = $stream->getActorRuntimeId();
-		$this->actionType = $stream->getUnsignedVarInt();
+		$this->actionType = $stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30
+			? $stream->getVarInt()
+			: $stream->getUnsignedVarInt();
 		$this->hotbarSlot = $stream->getVarInt();
 		$this->itemInHand = $stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30
 			? $stream->getNetworkItemStackDescriptor(decodeExtraData: false)
@@ -82,7 +84,11 @@ class UseItemOnEntityTransactionData extends TransactionData{
 
 	protected function encodeData(PacketSerializer $stream) : void{
 		$stream->putActorRuntimeId($this->actorRuntimeId);
-		$stream->putUnsignedVarInt($this->actionType);
+		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$stream->putVarInt($this->actionType);
+		}else{
+			$stream->putUnsignedVarInt($this->actionType);
+		}
 		$stream->putVarInt($this->hotbarSlot);
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
 			$stream->putNetworkItemStackDescriptor($this->itemInHand);

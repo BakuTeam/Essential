@@ -123,6 +123,72 @@ class NetworkInventoryAction{
 	}
 
 	/**
+	 * Reads an inventory action as embedded in PlayerAuthInputPacket's item interaction data.
+	 * Unlike {@see self::read()}, this always uses the legacy (pre-1.26.30) wire format, since
+	 * 1.26.30+ kept the auth-input transaction format unchanged while only changing the standalone
+	 * InventoryTransactionPacket format.
+	 *
+	 * @return $this
+	 *
+	 * @throws BinaryDataException
+	 * @throws PacketDecodeException
+	 */
+	public function readAuthInput(PacketSerializer $packet) : NetworkInventoryAction{
+		$this->sourceType = $packet->getUnsignedVarInt();
+
+		switch($this->sourceType){
+			case self::SOURCE_CONTAINER:
+				$this->windowId = $packet->getVarInt();
+				break;
+			case self::SOURCE_WORLD:
+				$this->sourceFlags = $packet->getUnsignedVarInt();
+				break;
+			case self::SOURCE_CREATIVE:
+				break;
+			case self::SOURCE_CRAFT_SLOT:
+			case self::SOURCE_TODO:
+				$this->windowId = $packet->getVarInt();
+				break;
+			default:
+				throw new PacketDecodeException("Unknown inventory action source type $this->sourceType");
+		}
+
+		$this->inventorySlot = $packet->getUnsignedVarInt();
+		$this->oldItem = ItemStackWrapper::read($packet);
+		$this->newItem = ItemStackWrapper::read($packet);
+
+		return $this;
+	}
+
+	/**
+	 * @throws \InvalidArgumentException
+	 */
+	public function writeAuthInput(PacketSerializer $packet) : void{
+		$packet->putUnsignedVarInt($this->sourceType);
+
+		switch($this->sourceType){
+			case self::SOURCE_CONTAINER:
+				$packet->putVarInt($this->windowId);
+				break;
+			case self::SOURCE_WORLD:
+				$packet->putUnsignedVarInt($this->sourceFlags);
+				break;
+			case self::SOURCE_CREATIVE:
+				break;
+			case self::SOURCE_CRAFT_SLOT:
+			case self::SOURCE_TODO:
+				$packet->putVarInt($this->windowId);
+				break;
+			default:
+				throw new \InvalidArgumentException("Unknown inventory action source type $this->sourceType");
+		}
+
+		$packet->putUnsignedVarInt($this->inventorySlot);
+		$this->oldItem->write($packet);
+		$this->newItem->write($packet);
+	}
+
+	/**
 	 * @throws \InvalidArgumentException
 	 */
 	public function write(PacketSerializer $packet, bool $hasItemStackIds = false) : void{
