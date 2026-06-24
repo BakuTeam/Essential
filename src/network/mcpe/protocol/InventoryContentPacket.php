@@ -55,13 +55,14 @@ class InventoryContentPacket extends DataPacket implements ClientboundPacket{
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->windowId = $in->getUnsignedVarInt();
 		$count = $in->getUnsignedVarInt();
+		$useDescriptor = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30;
 		for($i = 0; $i < $count; ++$i){
-			$this->items[] = ItemStackWrapper::read($in, true);
+			$this->items[] = $useDescriptor ? $in->getNetworkItemStackDescriptor() : ItemStackWrapper::read($in, true);
 		}
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_30){
 			$this->containerName = FullContainerName::read($in);
 			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_40){
-				$this->storage = ItemStackWrapper::read($in);
+				$this->storage = $useDescriptor ? $in->getNetworkItemStackDescriptor() : ItemStackWrapper::read($in);
 			}else{
 				$this->dynamicContainerSize = $in->getUnsignedVarInt();
 			}
@@ -73,13 +74,22 @@ class InventoryContentPacket extends DataPacket implements ClientboundPacket{
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putUnsignedVarInt($this->windowId);
 		$out->putUnsignedVarInt(count($this->items));
+		$useDescriptor = $out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30;
 		foreach($this->items as $item){
-			$item->write($out, true);;
+			if($useDescriptor){
+				$out->putNetworkItemStackDescriptor($item);
+			}else{
+				$item->write($out, true);
+			}
 		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_30){
 			$this->containerName->write($out);
 			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_40){
-				$this->storage->write($out);
+				if($useDescriptor){
+					$out->putNetworkItemStackDescriptor($this->storage);
+				}else{
+					$this->storage->write($out);
+				}
 			}else{
 				$out->putUnsignedVarInt($this->dynamicContainerSize);
 			}

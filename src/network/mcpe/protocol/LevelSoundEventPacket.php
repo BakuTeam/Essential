@@ -26,6 +26,7 @@ namespace pocketmine\network\mcpe\protocol;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEventMap;
 
 class LevelSoundEventPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::LEVEL_SOUND_EVENT_PACKET;
@@ -70,7 +71,11 @@ class LevelSoundEventPacket extends DataPacket implements ClientboundPacket, Ser
 	}
 
 	protected function decodePayload(PacketSerializer $in) : void{
-		$this->sound = $in->getUnsignedVarInt();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$this->sound = LevelSoundEventMap::stringToInt($in->getString()) ?? -1;
+		}else{
+			$this->sound = $in->getUnsignedVarInt();
+		}
 		$this->position = $in->getVector3();
 		$this->extraData = $in->getVarInt();
 		$this->entityType = $in->getString();
@@ -85,7 +90,11 @@ class LevelSoundEventPacket extends DataPacket implements ClientboundPacket, Ser
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
-		$out->putUnsignedVarInt($this->sound);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$out->putString(LevelSoundEventMap::intToString($this->sound) ?? "");
+		}else{
+			$out->putUnsignedVarInt($this->sound);
+		}
 		$out->putVector3($this->position);
 		$out->putVarInt($this->extraData);
 		$out->putString($this->entityType);

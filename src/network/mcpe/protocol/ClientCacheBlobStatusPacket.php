@@ -61,6 +61,17 @@ class ClientCacheBlobStatusPacket extends DataPacket implements ServerboundPacke
 	}
 
 	protected function decodePayload(PacketSerializer $in) : void{
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$missCount = $in->getUnsignedVarInt();
+			for($i = 0; $i < $missCount; ++$i){
+				$this->missHashes[] = $in->getLLong();
+			}
+			$hitCount = $in->getUnsignedVarInt();
+			for($i = 0; $i < $hitCount; ++$i){
+				$this->hitHashes[] = $in->getLLong();
+			}
+			return;
+		}
 		$missCount = $in->getUnsignedVarInt();
 		$hitCount = $in->getUnsignedVarInt();
 		for($i = 0; $i < $missCount; ++$i){
@@ -72,6 +83,17 @@ class ClientCacheBlobStatusPacket extends DataPacket implements ServerboundPacke
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$out->putUnsignedVarInt(count($this->missHashes));
+			foreach($this->missHashes as $hash){
+				$out->putLLong($hash);
+			}
+			$out->putUnsignedVarInt(count($this->hitHashes));
+			foreach($this->hitHashes as $hash){
+				$out->putLLong($hash);
+			}
+			return;
+		}
 		$out->putUnsignedVarInt(count($this->missHashes));
 		$out->putUnsignedVarInt(count($this->hitHashes));
 		foreach($this->missHashes as $hash){

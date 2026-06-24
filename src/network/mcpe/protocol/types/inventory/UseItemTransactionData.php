@@ -91,19 +91,22 @@ class UseItemTransactionData extends TransactionData{
 	public function getClientCooldownState() : int{ return $this->clientCooldownState; }
 
 	protected function decodeData(PacketSerializer $stream) : void{
+		$is2630 = $stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30;
 		$this->actionType = $stream->getUnsignedVarInt();
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20){
-			$this->triggerType = TriggerType::fromPacket($stream->getUnsignedVarInt());
+			$this->triggerType = TriggerType::fromPacket($is2630 ? $stream->getByte() : $stream->getUnsignedVarInt());
 		}
 		$this->blockPosition = $stream->getBlockPosition($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_10);
-		$this->face = $stream->getVarInt();
+		$this->face = $is2630 ? $stream->getByte() : $stream->getVarInt();
 		$this->hotbarSlot = $stream->getVarInt();
-		$this->itemInHand = ItemStackWrapper::read($stream, decodeExtraData: false);
+		$this->itemInHand = $is2630
+			? $stream->getNetworkItemStackDescriptor(decodeExtraData: false)
+			: ItemStackWrapper::read($stream, decodeExtraData: false);
 		$this->playerPosition = $stream->getVector3();
 		$this->clickPosition = $stream->getVector3();
 		$this->blockRuntimeId = $stream->getUnsignedVarInt();
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20){
-			$this->clientInteractPrediction = PredictedResult::fromPacket($stream->getUnsignedVarInt());
+			$this->clientInteractPrediction = PredictedResult::fromPacket($is2630 ? $stream->getByte() : $stream->getUnsignedVarInt());
 			if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_10){
 				$this->clientCooldownState = $stream->getByte();
 			}
@@ -111,19 +114,36 @@ class UseItemTransactionData extends TransactionData{
 	}
 
 	protected function encodeData(PacketSerializer $stream) : void{
+		$is2630 = $stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30;
 		$stream->putUnsignedVarInt($this->actionType);
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20){
-			$stream->putUnsignedVarInt($this->triggerType->value);
+			if($is2630){
+				$stream->putByte($this->triggerType->value);
+			}else{
+				$stream->putUnsignedVarInt($this->triggerType->value);
+			}
 		}
 		$stream->putBlockPosition($this->blockPosition, $stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_10);
-		$stream->putVarInt($this->face);
+		if($is2630){
+			$stream->putByte($this->face);
+		}else{
+			$stream->putVarInt($this->face);
+		}
 		$stream->putVarInt($this->hotbarSlot);
-		$this->itemInHand->write($stream);
+		if($is2630){
+			$stream->putNetworkItemStackDescriptor($this->itemInHand);
+		}else{
+			$this->itemInHand->write($stream);
+		}
 		$stream->putVector3($this->playerPosition);
 		$stream->putVector3($this->clickPosition);
 		$stream->putUnsignedVarInt($this->blockRuntimeId);
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20){
-			$stream->putUnsignedVarInt($this->clientInteractPrediction->value);
+			if($is2630){
+				$stream->putByte($this->clientInteractPrediction->value);
+			}else{
+				$stream->putUnsignedVarInt($this->clientInteractPrediction->value);
+			}
 			if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_10){
 				$stream->putByte($this->clientCooldownState);
 			}

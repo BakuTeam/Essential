@@ -72,6 +72,7 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 	public bool $blockNetworkIdsAreHashes = false; //new in 1.19.80, possibly useful for multi version
 	public bool $enableTickDeathSystems = false;
 	public NetworkPermissions $networkPermissions;
+	public bool $isLoggingChat = false; //new in 1.26.30
 	public ?ServerJoinInformation $serverJoinInformation = null;
 	public ServerTelemetryData $serverTelemetryData;
 
@@ -230,6 +231,9 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_0){
 			$this->networkPermissions = NetworkPermissions::decode($in);
 		}
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$this->isLoggingChat = $in->getBool();
+		}
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_0){
 			$this->serverJoinInformation = $in->readOptional(fn() => ServerJoinInformation::read($in, $in->getProtocolId()));
 			$this->serverTelemetryData = ServerTelemetryData::read($in);
@@ -301,6 +305,9 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_0) {
 			$this->networkPermissions->encode($out);
+		}
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$out->putBool($this->isLoggingChat);
 		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_0){
 			$out->writeOptional($this->serverJoinInformation, fn(ServerJoinInformation $info) => $info->write($out, $out->getProtocolId()));

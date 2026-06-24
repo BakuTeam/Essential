@@ -39,17 +39,29 @@ final class SubChunkPosition{
 
 	public function getZ() : int{ return $this->z; }
 
-	public static function read(PacketSerializer $in) : self{
-		$x = $in->getVarInt();
-		$y = $in->getVarInt();
-		$z = $in->getVarInt();
+	public static function read(PacketSerializer $in, bool $cereal = false) : self{
+		if($cereal){
+			$x = $in->getLInt();
+			$y = $in->getLInt();
+			$z = $in->getLInt();
+		}else{
+			$x = $in->getVarInt();
+			$y = $in->getVarInt();
+			$z = $in->getVarInt();
+		}
 
 		return new self($x, $y, $z);
 	}
 
-	public function write(PacketSerializer $out) : void{
-		$out->putVarInt($this->x);
-		$out->putVarInt($this->y);
-		$out->putVarInt($this->z);
+	public function write(PacketSerializer $out, bool $cereal = false) : void{
+		if($cereal){
+			$out->putLInt($this->x);
+			$out->putLInt($this->y);
+			$out->putLInt($this->z);
+		}else{
+			$out->putVarInt($this->x);
+			$out->putVarInt($this->y);
+			$out->putVarInt($this->z);
+		}
 	}
 }

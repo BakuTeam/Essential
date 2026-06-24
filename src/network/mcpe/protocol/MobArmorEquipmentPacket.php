@@ -54,6 +54,14 @@ class MobArmorEquipmentPacket extends DataPacket implements ClientboundPacket, S
 
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->actorRuntimeId = $in->getActorRuntimeId();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$this->head = $in->getNetworkItemStackDescriptor(decodeExtraData: false);
+			$this->chest = $in->getNetworkItemStackDescriptor(decodeExtraData: false);
+			$this->legs = $in->getNetworkItemStackDescriptor(decodeExtraData: false);
+			$this->feet = $in->getNetworkItemStackDescriptor(decodeExtraData: false);
+			$this->body = $in->getNetworkItemStackDescriptor(decodeExtraData: false);
+			return;
+		}
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
 			$this->head = ItemStackWrapper::read($in, decodeExtraData: false);
 			$this->chest = ItemStackWrapper::read($in, decodeExtraData: false);
@@ -72,6 +80,14 @@ class MobArmorEquipmentPacket extends DataPacket implements ClientboundPacket, S
 
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putActorRuntimeId($this->actorRuntimeId);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$out->putNetworkItemStackDescriptor($this->head);
+			$out->putNetworkItemStackDescriptor($this->chest);
+			$out->putNetworkItemStackDescriptor($this->legs);
+			$out->putNetworkItemStackDescriptor($this->feet);
+			$out->putNetworkItemStackDescriptor($this->body);
+			return;
+		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
 			$this->head->write($out);
 			$this->chest->write($out);

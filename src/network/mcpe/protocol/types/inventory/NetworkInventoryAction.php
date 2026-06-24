@@ -24,12 +24,15 @@ declare(strict_types=1);
 namespace pocketmine\network\mcpe\protocol\types\inventory;
 
 use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
+use pocketmine\utils\Binary;
 use pocketmine\utils\BinaryDataException;
 
 class NetworkInventoryAction{
 	public const SOURCE_CONTAINER = 0;
 
+	public const SOURCE_GLOBAL = 1;
 	public const SOURCE_WORLD = 2; //drop/pickup item entity
 	public const SOURCE_CREATIVE = 3;
 	public const SOURCE_CRAFT_SLOT = 100;
@@ -66,8 +69,8 @@ class NetworkInventoryAction{
 	public const ACTION_MAGIC_SLOT_PICKUP_ITEM = 1;
 
 	public int $sourceType;
-	public int $windowId;
-	public int $sourceFlags = 0;
+	public ?int $windowId = null;
+	public ?int $sourceFlags = 0;
 	public int $inventorySlot;
 	public ItemStackWrapper $oldItem;
 	public ItemStackWrapper $newItem;
@@ -81,6 +84,15 @@ class NetworkInventoryAction{
 	 */
 	public function read(PacketSerializer $packet, bool $hasItemStackIds = false) : NetworkInventoryAction{
 		$this->sourceType = $packet->getUnsignedVarInt();
+
+		if($packet->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$this->windowId = $packet->readOptional(fn() => $packet->readOptional(fn() => Binary::signByte($packet->getByte())));
+			$this->sourceFlags = $packet->readOptional(fn() => $packet->readOptional(fn() => $packet->getUnsignedVarInt()));
+			$this->inventorySlot = $packet->getUnsignedVarInt();
+			$this->oldItem = $packet->getNetworkItemStackDescriptor();
+			$this->newItem = $packet->getNetworkItemStackDescriptor();
+			return $this;
+		}
 
 		switch($this->sourceType){
 			case self::SOURCE_CONTAINER:
@@ -115,6 +127,15 @@ class NetworkInventoryAction{
 	 */
 	public function write(PacketSerializer $packet, bool $hasItemStackIds = false) : void{
 		$packet->putUnsignedVarInt($this->sourceType);
+
+		if($packet->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$packet->writeOptional($this->windowId, fn(int $windowId) => $packet->writeOptional($windowId, fn(int $v) => $packet->putByte(Binary::unsignByte($v))));
+			$packet->writeOptional($this->sourceFlags, fn(int $sourceFlags) => $packet->writeOptional($sourceFlags, fn(int $v) => $packet->putUnsignedVarInt($v)));
+			$packet->putUnsignedVarInt($this->inventorySlot);
+			$packet->putNetworkItemStackDescriptor($this->oldItem);
+			$packet->putNetworkItemStackDescriptor($this->newItem);
+			return;
+		}
 
 		switch($this->sourceType){
 			case self::SOURCE_CONTAINER:

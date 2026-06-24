@@ -50,13 +50,13 @@ class InventoryTransactionPacket extends DataPacket implements ClientboundPacket
 	public array $requestChangedSlots;
 	/** @var bool */
 	public $hasItemStackIds = true;
-	public TransactionData $trData;
+	public ?TransactionData $trData = null;
 
 	/**
 	 * @generate-create-func
 	 * @param InventoryTransactionChangedSlotsHack[] $requestChangedSlots
 	 */
-	public static function create(int $requestId, array $requestChangedSlots, TransactionData $trData) : self{
+	public static function create(int $requestId, array $requestChangedSlots, ?TransactionData $trData) : self{
 		$result = new self();
 		$result->requestId = $requestId;
 		$result->requestChangedSlots = $requestChangedSlots;
@@ -65,23 +65,26 @@ class InventoryTransactionPacket extends DataPacket implements ClientboundPacket
 	}
 
 	protected function decodePayload(PacketSerializer $in) : void{
+		$is2630 = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30;
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
 			$this->requestId = $in->readLegacyItemStackRequestId();
 			$this->requestChangedSlots = [];
-			if($this->requestId !== 0){
+			$hasChangedSlots = $is2630 ? $in->getBool() : $this->requestId !== 0;
+			if($hasChangedSlots){
 				for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
 					$this->requestChangedSlots[] = InventoryTransactionChangedSlotsHack::read($in);
 				}
 			}
 		}
 
-		$transactionType = $in->getUnsignedVarInt();
+		$transactionType = $is2630 ? $in->readOptional(fn() => $in->getUnsignedVarInt()) : $in->getUnsignedVarInt();
 
 		// if($in->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_220){
 		// 	$this->hasItemStackIds = $in->getBool();
 		// }
 
 		$this->trData = match($transactionType){
+			null => null,
 			NormalTransactionData::ID => new NormalTransactionData(),
 			MismatchTransactionData::ID => new MismatchTransactionData(),
 			UseItemTransactionData::ID => new UseItemTransactionData(),
@@ -90,13 +93,18 @@ class InventoryTransactionPacket extends DataPacket implements ClientboundPacket
 			default => throw new PacketDecodeException("Unknown transaction type $transactionType"),
 		};
 
-		$this->trData->decode($in);
+		$this->trData?->decode($in);
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
+		$is2630 = $out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30;
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
 			$out->writeLegacyItemStackRequestId($this->requestId);
-			if($this->requestId !== 0){
+			$hasChangedSlots = $this->requestId !== 0;
+			if($is2630){
+				$out->putBool($hasChangedSlots);
+			}
+			if($hasChangedSlots){
 				$out->putUnsignedVarInt(count($this->requestChangedSlots));
 				foreach($this->requestChangedSlots as $changedSlots){
 					$changedSlots->write($out);
@@ -104,13 +112,17 @@ class InventoryTransactionPacket extends DataPacket implements ClientboundPacket
 			}
 		}
 
-		$out->putUnsignedVarInt($this->trData->getTypeId());
+		if($is2630){
+			$out->writeOptional($this->trData?->getTypeId(), fn(int $typeId) => $out->putUnsignedVarInt($typeId));
+		}else{
+			$out->putUnsignedVarInt($this->trData->getTypeId());
+		}
 
 		// if($out->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_220){
 		// 	$out->putBool($this->hasItemStackIds);
 		// }
 
-		$this->trData->encode($out);
+		$this->trData?->encode($out);
 	}
 
 	public function handle(PacketHandlerInterface $handler) : bool{

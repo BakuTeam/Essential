@@ -25,6 +25,7 @@ namespace pocketmine\network\mcpe\protocol\types\inventory;
 
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\types\GetTypeIdFromConstTrait;
 
@@ -72,7 +73,9 @@ class UseItemOnEntityTransactionData extends TransactionData{
 		$this->actorRuntimeId = $stream->getActorRuntimeId();
 		$this->actionType = $stream->getUnsignedVarInt();
 		$this->hotbarSlot = $stream->getVarInt();
-		$this->itemInHand = ItemStackWrapper::read($stream, decodeExtraData: false);
+		$this->itemInHand = $stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30
+			? $stream->getNetworkItemStackDescriptor(decodeExtraData: false)
+			: ItemStackWrapper::read($stream, decodeExtraData: false);
 		$this->playerPosition = $stream->getVector3();
 		$this->clickPosition = $stream->getVector3();
 	}
@@ -81,7 +84,11 @@ class UseItemOnEntityTransactionData extends TransactionData{
 		$stream->putActorRuntimeId($this->actorRuntimeId);
 		$stream->putUnsignedVarInt($this->actionType);
 		$stream->putVarInt($this->hotbarSlot);
-		$this->itemInHand->write($stream);
+		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$stream->putNetworkItemStackDescriptor($this->itemInHand);
+		}else{
+			$this->itemInHand->write($stream);
+		}
 		$stream->putVector3($this->playerPosition);
 		$stream->putVector3($this->clickPosition);
 	}

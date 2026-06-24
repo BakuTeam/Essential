@@ -37,6 +37,7 @@ class GraphicsOverrideParameterPacket extends DataPacket implements ClientboundP
 	private ?float $unknownFloat;
 	private ?Vector3 $unknownVector3;
 	private string $biomeIdentifier;
+	private ?string $playerIdentifier = null;
 	private GraphicsOverrideParameterType $parameterType;
 	private bool $reset;
 
@@ -66,6 +67,8 @@ class GraphicsOverrideParameterPacket extends DataPacket implements ClientboundP
 
 	public function getBiomeIdentifier() : string{ return $this->biomeIdentifier; }
 
+	public function getPlayerIdentifier() : ?string{ return $this->playerIdentifier; }
+
 	public function getParameterType() : GraphicsOverrideParameterType{ return $this->parameterType; }
 
 	public function isReset() : bool{ return $this->reset; }
@@ -83,6 +86,11 @@ class GraphicsOverrideParameterPacket extends DataPacket implements ClientboundP
 			$this->unknownVector3 = null;
 		}
 		$this->biomeIdentifier = $in->getString();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$this->playerIdentifier = $in->readOptional(fn() => $in->getString());
+		}else{
+			$this->playerIdentifier = null;
+		}
 		$this->parameterType = GraphicsOverrideParameterType::fromPacket($in->getByte());
 		$this->reset = $in->getBool();
 	}
@@ -97,6 +105,9 @@ class GraphicsOverrideParameterPacket extends DataPacket implements ClientboundP
 			$out->writeOptional($this->unknownVector3, fn(Vector3 $v) => $out->putVector3($v));
 		}
 		$out->putString($this->biomeIdentifier);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$out->writeOptional($this->playerIdentifier, fn(string $v) => $out->putString($v));
+		}
 		$out->putByte($this->parameterType->value);
 		$out->putBool($this->reset);
 	}

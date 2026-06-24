@@ -64,6 +64,16 @@ class SubChunkRequestPacket extends DataPacket implements ServerboundPacket{
 
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->dimension = $in->getVarInt();
+
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$this->entries = [];
+			for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; $i++){
+				$this->entries[] = SubChunkPositionOffset::read($in);
+			}
+			$this->basePosition = SubChunkPosition::read($in, true);
+			return;
+		}
+
 		$this->basePosition = SubChunkPosition::read($in);
 
 		$this->entries = [];
@@ -76,6 +86,16 @@ class SubChunkRequestPacket extends DataPacket implements ServerboundPacket{
 
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putVarInt($this->dimension);
+
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$out->putUnsignedVarInt(count($this->entries));
+			foreach($this->entries as $entry){
+				$entry->write($out);
+			}
+			$this->basePosition->write($out, true);
+			return;
+		}
+
 		$this->basePosition->write($out);
 
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_18_10){

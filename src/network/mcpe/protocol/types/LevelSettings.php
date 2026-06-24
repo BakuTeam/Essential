@@ -85,6 +85,8 @@ final class LevelSettings{
 	public ?bool $experimentalGameplayOverride = null;
 	public int $chatRestrictionLevel = ChatRestrictionLevel::NONE;
 	public bool $disablePlayerInteractions = false;
+	public int $serverEditorConnectionPolicy = 0; //new in 1.26.30
+	public bool $allowAnonymousBlockDropsInEditorWorlds = false; //new in 1.26.30
 
 	public string $serverIdentifier = "";
 	public string $worldIdentifier = "";
@@ -188,6 +190,10 @@ final class LevelSettings{
 				$this->ownerIdentifier = $in->getString();
 			}
 		}
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$this->serverEditorConnectionPolicy = $in->getVarInt();
+			$this->allowAnonymousBlockDropsInEditorWorlds = $in->getBool();
+		}
 	}
 
 	public function write(PacketSerializer $out) : void{
@@ -271,6 +277,10 @@ final class LevelSettings{
 			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_90){
 				$out->putString($this->ownerIdentifier);
 			}
+		}
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$out->putVarInt($this->serverEditorConnectionPolicy);
+			$out->putBool($this->allowAnonymousBlockDropsInEditorWorlds);
 		}
 	}
 }

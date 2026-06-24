@@ -48,6 +48,18 @@ abstract class TransactionData{
 	 */
 	final public function decode(PacketSerializer $stream) : void{
 
+		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$hasValue = $stream->getBool();
+			if($hasValue){
+				$actionCount = $stream->getUnsignedVarInt();
+				for($i = 0; $i < $actionCount; ++$i){
+					$this->actions[] = (new NetworkInventoryAction())->read($stream, false);
+				}
+				$this->decodeData($stream);
+			}
+			return;
+		}
+
 		$hasItemStackId = false;
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0 && $stream->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_220){
 			$hasItemStackId = $stream->getBool();
@@ -67,6 +79,18 @@ abstract class TransactionData{
 	abstract protected function decodeData(PacketSerializer $stream) : void;
 
 	final public function encode(PacketSerializer $stream) : void{
+
+		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+			$stream->putBool($hasValue = count($this->actions) > 0);
+			if($hasValue){
+				$stream->putUnsignedVarInt(count($this->actions));
+				foreach($this->actions as $action){
+					$action->write($stream, false);
+				}
+				$this->encodeData($stream);
+			}
+			return;
+		}
 
 		$hasItemStackId = false;
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0 && $stream->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_220){
