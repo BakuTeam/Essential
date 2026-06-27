@@ -68,12 +68,17 @@ final class CreativeInventoryCache{
 		$groups = [];
 
 		$typeConverter = TypeConverter::getInstance($this->getProtocolId());
+		$itemTranslator = $typeConverter->getItemTranslator();
 
 		$nextIndex = 0;
 		$groupIndexes = [];
 		$itemGroupIndexes = [];
 
 		foreach($inventory->getAllEntries() as $k => $entry){
+			if(!$itemTranslator->isItemTypeNetworkCompatible($entry->getItem())){
+				continue;
+			}
+
 			$group = $entry->getGroup();
 			$category = $entry->getCategory();
 			if($group === null){
@@ -95,6 +100,9 @@ final class CreativeInventoryCache{
 		//creative inventory may have holes if items were unregistered - ensure network IDs used are always consistent
 		$items = [];
 		foreach($inventory->getAllEntries() as $k => $entry){
+			if(!isset($itemGroupIndexes[$k])){
+				continue;
+			}
 			$items[] = new CreativeItemEntry(
 				$k,
 				$typeConverter->coreItemStackToNet($entry->getItem()),

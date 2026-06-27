@@ -67,6 +67,20 @@ final class ItemTranslator{
 		}
 	}
 
+	public function isItemTypeNetworkCompatible(Item $item) : bool{
+		try{
+			$itemData = $this->itemSerializer->serializeType($item, $this->itemDataDowngrader);
+		}catch(ItemTypeSerializeException){
+			return false;
+		}
+		try{
+			$this->itemTypeDictionary->fromStringId($itemData->getName());
+		}catch(InvalidArgumentException){
+			return false;
+		}
+		return true;
+	}
+
 	/**
 	 * @return int[]
 	 * @phpstan-return array{int, int, ?int}
