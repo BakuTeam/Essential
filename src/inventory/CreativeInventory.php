@@ -34,6 +34,7 @@ use pocketmine\utils\SingletonTrait;
 use Symfony\Component\Filesystem\Path;
 use function array_filter;
 use function array_map;
+use function in_array;
 
 final class CreativeInventory{
 	use SingletonTrait;
@@ -63,6 +64,17 @@ final class CreativeInventory{
 			);
 
 			foreach($groups as $groupData){
+				//edu edition groups (chemistry table, compounds, elements and products such as
+				//medicine/balloons/glow sticks/sparklers) have no valid creative category on non-edu
+				if(in_array($groupData->group_name, [
+					"itemGroup.name.chemistrytable",
+					"itemGroup.name.compounds",
+					"itemGroup.name.elements",
+					"itemGroup.name.products",
+				], true)){
+					continue;
+				}
+
 				$icon = $groupData->group_icon === null ? null : CraftingManagerFromDataHelper::deserializeItemStack($groupData->group_icon);
 
 				$group = $icon === null ? null : new CreativeGroup(
