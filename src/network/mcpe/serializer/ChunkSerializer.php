@@ -189,7 +189,17 @@ final class ChunkSerializer{
 		} else {
 			$subChunkCount = min(self::getSubChunkCount($chunk, $dimensionId), 16);
 
+			//1.16.x clients hard-crash when block runtime IDs don't line up with their built-in
+			//palette. Until the 1.16.100 canonical block state data is verified, send empty (all-air)
+			//subchunks to these clients so block data can never crash them.
+			$emptyBlocksForLegacy = $typeConverter->getProtocolId() < ProtocolInfo::PROTOCOL_1_17_0;
+
 			for($y = 0; $y < $subChunkCount; ++$y){
+				if($emptyBlocksForLegacy){
+					$stream->putByte(8); //subchunk version
+					$stream->putByte(0); //0 storage layers - client treats this as all-air
+					continue;
+				}
 				self::serializeSubChunk($chunk->getSubChunk($y), $typeConverter->getBlockTranslator(), $stream, false);
 			}
 
