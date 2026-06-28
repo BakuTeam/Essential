@@ -122,7 +122,7 @@ class PreSpawnPacketHandler extends PacketHandler{
 			}
 
 			$this->session->getLogger()->debug("Sending actor identifiers");
-			$this->session->sendDataPacket(StaticPacketCache::getInstance()->getAvailableActorIdentifiers());
+			$this->session->sendDataPacket(StaticPacketCache::getInstance()->getAvailableActorIdentifiers($this->session->getProtocolId()));
 
 			$this->session->getLogger()->debug("Sending biome definitions");
 			$this->session->sendDataPacket(StaticPacketCache::getInstance()->getBiomeDefs($this->session->getProtocolId()));

@@ -86,6 +86,7 @@ final class BedrockDataFiles{
 	public const CREATIVE = BEDROCK_DATA_PATH . '/creative';
 	public const ENTITY_ID_MAP_JSON = BEDROCK_DATA_PATH . '/entity_id_map.json';
 	public const ENTITY_IDENTIFIERS_NBT = BEDROCK_DATA_PATH . '/entity_identifiers.nbt';
+	public const ENTITY_IDENTIFIERS_1_16_100_NBT = BEDROCK_DATA_PATH . '/entity_identifiers-1.16.100.nbt';
 	public const ENUMS = BEDROCK_DATA_PATH . '/enums';
 	public const ENUMS_PY = BEDROCK_DATA_PATH . '/enums.py';
 	public const ITEM_TAGS_1_20_0_JSON = BEDROCK_DATA_PATH . '/item_tags-1.20.0.json';

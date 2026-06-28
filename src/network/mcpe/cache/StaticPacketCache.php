@@ -107,21 +107,23 @@ class StaticPacketCache{
 		return new self(
 			BiomeDefinitionListPacket::fromDefinitions(self::loadBiomeDefinitionModel(BedrockDataFiles::BIOME_DEFINITIONS_JSON)),
 			BiomeDefinitionListPacket::createLegacy(self::loadCompoundFromFile(BedrockDataFiles::BIOME_DEFINITIONS_NBT)),
-			AvailableActorIdentifiersPacket::create(self::loadCompoundFromFile(BedrockDataFiles::ENTITY_IDENTIFIERS_NBT))
+			AvailableActorIdentifiersPacket::create(self::loadCompoundFromFile(BedrockDataFiles::ENTITY_IDENTIFIERS_NBT)),
+			AvailableActorIdentifiersPacket::create(self::loadCompoundFromFile(BedrockDataFiles::ENTITY_IDENTIFIERS_1_16_100_NBT))
 		);
 	}
 
 	public function __construct(
 		private BiomeDefinitionListPacket $biomeDefs,
 		private BiomeDefinitionListPacket $legacyBiomeDefs,
-		private AvailableActorIdentifiersPacket $availableActorIdentifiers
+		private AvailableActorIdentifiersPacket $availableActorIdentifiers,
+		private AvailableActorIdentifiersPacket $legacyAvailableActorIdentifiers
 	){}
 
 	public function getBiomeDefs(int $protocolId) : BiomeDefinitionListPacket{
 		return $protocolId >= ProtocolInfo::PROTOCOL_1_21_80 ? $this->biomeDefs : $this->legacyBiomeDefs;
 	}
 
-	public function getAvailableActorIdentifiers() : AvailableActorIdentifiersPacket{
-		return $this->availableActorIdentifiers;
+	public function getAvailableActorIdentifiers(int $protocolId) : AvailableActorIdentifiersPacket{
+		return $protocolId <= ProtocolInfo::PROTOCOL_1_16_210 ? $this->legacyAvailableActorIdentifiers : $this->availableActorIdentifiers;
 	}
 }
