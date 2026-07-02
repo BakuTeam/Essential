@@ -426,7 +426,7 @@ class ItemStackRequestExecutor{
 			try{
 				$this->processItemStackRequestAction($action);
 			}catch(ItemStackRequestProcessException $e){
-				throw new ItemStackRequestProcessException("Error processing action $k (" . (new \ReflectionClass($action))->getShortName() . "): " . $e->getMessage(), 0, $e);
+				$this->player->getNetworkSession()->getLogger()->debug("ItemStackRequest action $k (" . (new \ReflectionClass($action))->getShortName() . ") skipped: " . $e->getMessage());
 			}
 		}
 		$this->setNextCreatedItem(null);
