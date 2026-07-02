@@ -4,9 +4,9 @@
  *
  *  ____            _        _   __  __ _                  __  __ ____
  * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
- * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
+ * |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
+ *  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___| \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -376,20 +376,34 @@ class ItemStackRequestExecutor{
 					$this->setNextCreatedItem($window->getOutput($optionId));
 				}
 			}else{
-				$this->beginCrafting($action->getRecipeId(), $this->player->getNetworkSession()->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20 ? $action->getRepetitions() : 1);
+				try{
+					$this->beginCrafting($action->getRecipeId(), $this->player->getNetworkSession()->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20 ? $action->getRepetitions() : 1);
+				}catch(ItemStackRequestProcessException $e){
+					$this->player->getNetworkSession()->getLogger()->debug("CraftRecipe skipped: " . $e->getMessage());
+				}
 			}
 		}elseif($action instanceof CraftRecipeAutoStackRequestAction){
-			$this->beginCrafting($action->getRecipeId(), $action->getRepetitions());
+			try{
+				$this->beginCrafting($action->getRecipeId(), $action->getRepetitions());
+			}catch(ItemStackRequestProcessException $e){
+				$this->player->getNetworkSession()->getLogger()->debug("CraftRecipeAuto skipped: " . $e->getMessage());
+			}
 		}elseif($action instanceof CraftRecipeOptionalStackRequestAction){
 			$filterStrings = $this->request->getFilterStrings();
 			$filterStringIndex = $action->getFilterStringIndex();
 			$this->beginAnvilTransaction($filterStringIndex >= 0 ? ($filterStrings[$filterStringIndex] ?? null) : null);
 		}elseif($action instanceof CraftingConsumeInputStackRequestAction){
+			if($this->specialTransaction === null){
+				return;
+			}
 			if(!$this->specialTransaction instanceof AnvilTransaction){
 				$this->assertDoingCrafting();
 			}
 			$this->removeItemFromSlot($action->getSource(), $action->getCount()); //output discarded - we allow the transaction to verify the balance
 		}elseif($action instanceof CraftingCreateSpecificResultStackRequestAction){
+			if($this->specialTransaction === null){
+				return;
+			}
 			$this->assertDoingCrafting();
 
 			$nextResultItem = $this->craftingResults[$action->getResultIndex()] ?? null;
