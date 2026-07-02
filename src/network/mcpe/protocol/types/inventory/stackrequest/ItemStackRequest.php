@@ -98,9 +98,10 @@ final class ItemStackRequest{
 		}
 
 		$filterStrings = [];
-		//filterStrings are sent by all versions that support ItemStackRequest (1.16.0+)
-		for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
-			$filterStrings[] = $in->getString();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_200){
+			for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
+				$filterStrings[] = $in->getString();
+			}
 		}
 		if ($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_30) {
 			$filterStringCause = $in->getLInt();
