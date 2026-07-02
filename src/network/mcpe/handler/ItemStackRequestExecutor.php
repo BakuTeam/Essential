@@ -430,7 +430,13 @@ class ItemStackRequestExecutor{
 				$this->player->getNetworkSession()->getLogger()->debug("ItemStackRequest action $k (" . (new \ReflectionClass($action))->getShortName() . ") skipped: " . $e->getMessage());
 			}
 		}
-		$this->setNextCreatedItem(null);
+		try{
+			$this->setNextCreatedItem(null);
+		}catch(ItemStackRequestProcessException $e){
+			$this->nextCreatedItem = null;
+			$this->createdItemFromCreativeInventory = false;
+			$this->createdItemsTakenCount = 0;
+		}
 		$inventoryActions = $this->builder->generateActions();
 
 		$transaction = $this->specialTransaction ?? new InventoryTransaction($this->player);
