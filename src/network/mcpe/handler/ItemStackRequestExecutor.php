@@ -37,6 +37,7 @@ use pocketmine\inventory\transaction\TransactionBuilder;
 use pocketmine\inventory\transaction\TransactionBuilderInventory;
 use pocketmine\item\Item;
 use pocketmine\network\mcpe\InventoryManager;
+use pocketmine\network\PacketHandlingException;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerUIIds;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\CraftingConsumeInputStackRequestAction;
@@ -425,7 +426,7 @@ class ItemStackRequestExecutor{
 		foreach(Utils::promoteKeys($this->request->getActions()) as $k => $action){
 			try{
 				$this->processItemStackRequestAction($action);
-			}catch(ItemStackRequestProcessException $e){
+			}catch(ItemStackRequestProcessException | PacketHandlingException $e){
 				$this->player->getNetworkSession()->getLogger()->debug("ItemStackRequest action $k (" . (new \ReflectionClass($action))->getShortName() . ") skipped: " . $e->getMessage());
 			}
 		}
