@@ -593,7 +593,7 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 					}
 					$type = self::ARG_FLAG_POSTFIX | $postfixIndexes[$parameter->postfix];
 				}else{
-					$type = $parameter->paramType;
+					$type = self::convertArg($out->getProtocolId(), $parameter->paramType);
 				}
 
 				$out->putLInt($type);
@@ -684,8 +684,6 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 			}
 			foreach($commandData->overloads as $overload){
 				foreach($overload->getParameters() as $parameter){
-					$parameter->paramType = self::convertArg($out->getProtocolId(), $parameter->paramType);
-
 					if($parameter->enum !== null){
 						$addEnumFn($parameter->enum);
 					}
