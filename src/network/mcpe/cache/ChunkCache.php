@@ -29,6 +29,7 @@ use pocketmine\network\mcpe\compression\CompressBatchPromise;
 use pocketmine\network\mcpe\compression\Compressor;
 use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
+use pocketmine\network\mcpe\serializer\ChunkSerializer;
 use pocketmine\world\ChunkListener;
 use pocketmine\world\ChunkListenerNoOpTrait;
 use pocketmine\world\format\Chunk;
@@ -36,6 +37,7 @@ use pocketmine\world\World;
 use function count;
 use function is_string;
 use function spl_object_id;
+use function sprintf;
 use function strlen;
 
 /**
@@ -108,6 +110,26 @@ class ChunkCache implements ChunkListener{
 			throw new \InvalidArgumentException("Cannot request an unloaded chunk");
 		}
 		++$this->misses;
+
+		$dbgSubCount = ChunkSerializer::getSubChunkCount($chunk, $this->dimensionId);
+		$dbgMaxY = null;
+		for($dbgX = 0; $dbgX < 16; ++$dbgX){
+			for($dbgZ = 0; $dbgZ < 16; ++$dbgZ){
+				$dbgH = $chunk->getHighestBlockAt($dbgX, $dbgZ);
+				if($dbgH !== null && ($dbgMaxY === null || $dbgH > $dbgMaxY)){
+					$dbgMaxY = $dbgH;
+				}
+			}
+		}
+		\GlobalLogger::get()->info(sprintf(
+			"[ChunkDbg] w=%s c=%d,%d proto=%d subCount=%d highestBlockY=%s",
+			$this->world->getFolderName(),
+			$chunkX,
+			$chunkZ,
+			$typeConverter->getProtocolId(),
+			$dbgSubCount,
+			$dbgMaxY === null ? "none" : (string) $dbgMaxY
+		));
 
 		$this->world->timings->syncChunkSendPrepare->startTiming();
 		try{
