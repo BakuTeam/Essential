@@ -14,12 +14,12 @@
 ## What is this?
 Essential is a customisable server software for Minecraft: Bedrock Edition, maintained by **BakuTeam**. It is a fork of [PocketMine-MP](https://github.com/pmmp/PocketMine-MP) and keeps its powerful plugin API while extending protocol support.
 
-**Supported MCPE/Bedrock versions:** 1.12, 1.16 – 1.26.x
+**Supported MCPE/Bedrock versions:** 1.16 – 1.26.40
 
 - 🧩 **Powerful plugin API** — API-compatible with the PocketMine-MP ecosystem
 - 🌐 **Multi-world support**
 - 🏎️ **Performance** — built from scratch in PHP
-- ⤴️ **Extended version support** — including legacy 1.12 clients
+- ⤴️ **Extended version support** — up to the latest Bedrock release (1.26.40)
 
 ## Getting Started
 - [Building and running from source](BUILDING.md)
