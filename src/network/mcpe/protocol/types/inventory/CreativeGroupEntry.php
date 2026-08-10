@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types\inventory;
 
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 
 final class CreativeGroupEntry{
@@ -42,14 +43,18 @@ final class CreativeGroupEntry{
 	public function getIcon() : ItemStack{ return $this->icon; }
 
 	public static function read(PacketSerializer $in) : self{
-		$categoryId = $in->getLInt();
+		$categoryId = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $in->getByte() : $in->getLInt();
 		$categoryName = $in->getString();
 		$icon = $in->getItemStackWithoutStackId();
 		return new self($categoryId, $categoryName, $icon);
 	}
 
 	public function write(PacketSerializer $out) : void{
-		$out->putLInt($this->categoryId);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->putByte($this->categoryId);
+		}else{
+			$out->putLInt($this->categoryId);
+		}
 		$out->putString($this->categoryName);
 		$out->putItemStackWithoutStackId($this->icon);
 	}

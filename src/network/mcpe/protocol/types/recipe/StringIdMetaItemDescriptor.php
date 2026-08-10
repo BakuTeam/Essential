@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types\recipe;
 
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\types\GetTypeIdFromConstTrait;
 
@@ -49,13 +50,17 @@ final class StringIdMetaItemDescriptor implements ItemDescriptor{
 
 	public static function read(PacketSerializer $in) : self{
 		$stringId = $in->getString();
-		$meta = $in->getLShort();
+		$meta = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $in->getVarInt() : $in->getLShort();
 
 		return new self($stringId, $meta);
 	}
 
 	public function write(PacketSerializer $out) : void{
 		$out->putString($this->id);
-		$out->putLShort($this->meta);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->putVarInt($this->meta);
+		}else{
+			$out->putLShort($this->meta);
+		}
 	}
 }

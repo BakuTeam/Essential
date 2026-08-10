@@ -137,15 +137,15 @@ class PacketSerializer extends BinaryStream{
 		}
 		$skinResourcePatch = $this->getString();
 		$skinData = $this->getSkinImage();
-		$animationCount = $this->getLInt();
+		$animationCount = $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $this->getUnsignedVarInt() : $this->getLInt();
 		$animations = [];
 		for($i = 0; $i < $animationCount; ++$i){
 			$skinImage = $this->getSkinImage();
-			$animationType = $this->getLInt();
+			$animationType = $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $this->getUnsignedVarInt() : $this->getLInt();
 			$animationFrames = $this->getLFloat();
 
 			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_100){
-				$expressionType = $this->getLInt();
+				$expressionType = $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $this->getUnsignedVarInt() : $this->getLInt();
 			}
 			$animations[] = new SkinAnimation($skinImage, $animationType, $animationFrames, $expressionType ?? 0);
 		}
@@ -166,26 +166,44 @@ class PacketSerializer extends BinaryStream{
 
 		$capeId = $this->getString();
 		$fullSkinId = $this->getString();
-		$armSize = $this->getString();
-		$skinColor = $this->getString();
-		$personaPieceCount = $this->getLInt();
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$armSize = $this->getByte() === 0 ? SkinData::ARM_SIZE_SLIM : SkinData::ARM_SIZE_WIDE;
+			$skinColor = self::skinColorFromInt($this->getLInt());
+		}else{
+			$armSize = $this->getString();
+			$skinColor = $this->getString();
+		}
+		$personaPieceCount = $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $this->getUnsignedVarInt() : $this->getLInt();
 		$personaPieces = [];
 		for($i = 0; $i < $personaPieceCount; ++$i){
 			$pieceId = $this->getString();
-			$pieceType = $this->getString();
-			$packId = $this->getString();
+			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				$pieceType = self::personaPieceTypeFromOrdinal($this->getLInt());
+				$packId = $this->getUUID()->toString();
+			}else{
+				$pieceType = $this->getString();
+				$packId = $this->getString();
+			}
 			$isDefaultPiece = $this->getBool();
 			$productId = $this->getString();
 			$personaPieces[] = new PersonaSkinPiece($pieceId, $pieceType, $packId, $isDefaultPiece, $productId);
 		}
-		$pieceTintColorCount = $this->getLInt();
+		$pieceTintColorCount = $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $this->getUnsignedVarInt() : $this->getLInt();
 		$pieceTintColors = [];
 		for($i = 0; $i < $pieceTintColorCount; ++$i){
 			$pieceType = $this->getString();
-			$colorCount = $this->getLInt();
-			$colors = [];
-			for($j = 0; $j < $colorCount; ++$j){
-				$colors[] = $this->getString();
+			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				//since 1.26.40 the colour count is fixed at 4 and each colour is a network ARGB integer
+				$colors = [];
+				for($j = 0; $j < PersonaPieceTintColor::EXPECTED_COLOR_COUNT; ++$j){
+					$colors[] = self::skinColorFromInt($this->getLInt());
+				}
+			}else{
+				$colorCount = $this->getLInt();
+				$colors = [];
+				for($j = 0; $j < $colorCount; ++$j){
+					$colors[] = $this->getString();
+				}
 			}
 			$pieceTintColors[] = new PersonaPieceTintColor(
 				$pieceType,
@@ -203,6 +221,11 @@ class PacketSerializer extends BinaryStream{
 		$override = false;
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_63){
 			$override = $this->getBool();
+		}
+
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$this->getString(); //trusted skin flag - not tracked by this fork
+			$this->getString(); //profile hash - not tracked by this fork
 		}
 
 		return new SkinData(
@@ -230,6 +253,37 @@ class PacketSerializer extends BinaryStream{
 		);
 	}
 
+	/**
+	 * Persona skin piece types, ordered so the array index matches the network ordinal used since 1.26.40.
+	 */
+	private const PERSONA_PIECE_TYPES = [
+		"unknown", "skeleton", "body", "skin", "bottom", "feet", "dress", "top", "high_pants", "hands",
+		"outerwear", "facialhair", "mouth", "eyes", "hair", "hood", "back", "faceaccessory", "head", "legs",
+		"leftleg", "rightleg", "arms", "leftarm", "rightarm", "capes", "classicskin", "emote",
+	];
+
+	private static function personaPieceTypeToOrdinal(string $value) : int{
+		$ordinal = array_search($value, self::PERSONA_PIECE_TYPES, true);
+		return $ordinal === false ? 0 : $ordinal;
+	}
+
+	private static function personaPieceTypeFromOrdinal(int $ordinal) : string{
+		return self::PERSONA_PIECE_TYPES[$ordinal] ?? "unknown";
+	}
+
+	/** Parses a "#AARRGGBB" style skin colour string into a network ARGB integer (since 1.26.40). */
+	private static function skinColorToInt(string $color) : int{
+		$hex = ltrim($color, "#");
+		if($hex === "" || strlen($hex) > 8 || !ctype_xdigit($hex)){
+			return 0;
+		}
+		return (int) hexdec($hex);
+	}
+
+	private static function skinColorFromInt(int $argb) : string{
+		return sprintf("#%08x", $argb & 0xFFFFFFFF);
+	}
+
 	public function putSkin(SkinData $skin) : void{
 		$this->putString($skin->getSkinId());
 
@@ -239,14 +293,26 @@ class PacketSerializer extends BinaryStream{
 
 		$this->putString($skin->getResourcePatch());
 		$this->putSkinImage($skin->getSkinImage());
-		$this->putLInt(count($skin->getAnimations()));
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$this->putUnsignedVarInt(count($skin->getAnimations()));
+		}else{
+			$this->putLInt(count($skin->getAnimations()));
+		}
 		foreach($skin->getAnimations() as $animation){
 			$this->putSkinImage($animation->getImage());
-			$this->putLInt($animation->getType());
+			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				$this->putUnsignedVarInt($animation->getType());
+			}else{
+				$this->putLInt($animation->getType());
+			}
 			$this->putLFloat($animation->getFrames());
 
 			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_100){
-				$this->putLInt($animation->getExpressionType());
+				if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+					$this->putUnsignedVarInt($animation->getExpressionType());
+				}else{
+					$this->putLInt($animation->getExpressionType());
+				}
 			}
 		}
 		$this->putSkinImage($skin->getCapeImage());
@@ -266,22 +332,46 @@ class PacketSerializer extends BinaryStream{
 
 		$this->putString($skin->getCapeId());
 		$this->putString($skin->getFullSkinId());
-		$this->putString($skin->getArmSize());
-		$this->putString($skin->getSkinColor());
-		$this->putLInt(count($skin->getPersonaPieces()));
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$this->putByte($skin->getArmSize() === SkinData::ARM_SIZE_SLIM ? 0 : 1);
+			$this->putLInt(self::skinColorToInt($skin->getSkinColor()));
+		}else{
+			$this->putString($skin->getArmSize());
+			$this->putString($skin->getSkinColor());
+		}
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$this->putUnsignedVarInt(count($skin->getPersonaPieces()));
+		}else{
+			$this->putLInt(count($skin->getPersonaPieces()));
+		}
 		foreach($skin->getPersonaPieces() as $piece){
 			$this->putString($piece->getPieceId());
-			$this->putString($piece->getPieceType());
-			$this->putString($piece->getPackId());
+			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				$this->putLInt(self::personaPieceTypeToOrdinal($piece->getPieceType()));
+				$this->putUUID(\Ramsey\Uuid\Uuid::fromString($piece->getPackId()));
+			}else{
+				$this->putString($piece->getPieceType());
+				$this->putString($piece->getPackId());
+			}
 			$this->putBool($piece->isDefaultPiece());
 			$this->putString($piece->getProductId());
 		}
-		$this->putLInt(count($skin->getPieceTintColors()));
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$this->putUnsignedVarInt(count($skin->getPieceTintColors()));
+		}else{
+			$this->putLInt(count($skin->getPieceTintColors()));
+		}
 		foreach($skin->getPieceTintColors() as $tint){
 			$this->putString($tint->getPieceType());
-			$this->putLInt(count($tint->getColors()));
-			foreach($tint->getColors() as $color){
-				$this->putString($color);
+			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				foreach($tint->getColors() as $color){
+					$this->putLInt(self::skinColorToInt($color));
+				}
+			}else{
+				$this->putLInt(count($tint->getColors()));
+				foreach($tint->getColors() as $color){
+					$this->putString($color);
+				}
 			}
 		}
 
@@ -294,6 +384,10 @@ class PacketSerializer extends BinaryStream{
 
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_63){
 			$this->putBool($skin->isOverride());
+		}
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$this->putString($skin->isVerified() ? "true" : "false");
+			$this->putString(""); //profile hash - not tracked by this fork
 		}
 	}
 
@@ -569,6 +663,27 @@ class PacketSerializer extends BinaryStream{
 	}
 
 	public function getRecipeIngredient() : RecipeIngredient{
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			//1.26.40 uses a string-tagged descriptor: a variant byte (0 = empty, 1 = present), then a string type.
+			if($this->getByte() === 0){
+				$this->getVarInt(); //empty descriptor sentinel meta (32767)
+				$descriptor = null;
+			}else{
+				$typeStr = $this->getString();
+				$descriptor = match($typeStr){
+					"name" => StringIdMetaItemDescriptor::read($this),
+					"item_tag" => TagItemDescriptor::read($this),
+					"molang" => MolangItemDescriptor::read($this),
+					default => null,
+				};
+				if($typeStr === "item_tag"){
+					$this->getVarInt(); //tag descriptor meta wildcard - not tracked by this fork
+				}
+			}
+			$count = $this->getVarInt();
+
+			return new RecipeIngredient($descriptor, $count);
+		}
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_30){
 			$descriptorType = $this->getByte();
 			$descriptor = match($descriptorType){
@@ -590,6 +705,27 @@ class PacketSerializer extends BinaryStream{
 
 	public function putRecipeIngredient(RecipeIngredient $ingredient) : void{
 		$type = $ingredient->getDescriptor();
+
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			if($type instanceof StringIdMetaItemDescriptor || $type instanceof TagItemDescriptor || $type instanceof MolangItemDescriptor){
+				$this->putByte(1);
+				$this->putString(match(true){
+					$type instanceof StringIdMetaItemDescriptor => "name",
+					$type instanceof TagItemDescriptor => "item_tag",
+					$type instanceof MolangItemDescriptor => "molang",
+				});
+				$type->write($this);
+				if($type instanceof TagItemDescriptor){
+					$this->putVarInt(32767); //tag descriptor meta wildcard - not tracked by this fork
+				}
+			}else{
+				$this->putByte(0);
+				$this->putVarInt(32767); //empty descriptor sentinel meta
+			}
+			$this->putVarInt($ingredient->getCount());
+
+			return;
+		}
 
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_30){
 			$this->putByte($type?->getTypeId() ?? 0);

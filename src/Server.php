@@ -1004,7 +1004,7 @@ class Server{
 			$this->network = new Network($this->logger);
 			$this->network->setName($this->getMotd());
 
-			$this->logger->info("This server is running NG-PocketMine-MP v" . VersionInfo::BASE_VERSION);
+			$this->logger->info("This server is running " . VersionInfo::NAME . " v" . VersionInfo::BASE_VERSION);
 
 			DefaultPermissions::registerCorePermissions();
 

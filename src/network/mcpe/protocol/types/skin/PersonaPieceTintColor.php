@@ -32,6 +32,9 @@ final class PersonaPieceTintColor{
 	public const PIECE_TYPE_PERSONA_HAIR = "persona_hair";
 	public const PIECE_TYPE_PERSONA_MOUTH = "persona_mouth";
 
+	/** Number of colours each tint always carries on the wire since 1.26.40. */
+	public const EXPECTED_COLOR_COUNT = 4;
+
 	/**
 	 * @param string[] $colors
 	 */

@@ -234,7 +234,7 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_0){
 			$this->networkPermissions = NetworkPermissions::decode($in);
 		}
-		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30 && $in->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40){
 			$this->isLoggingChat = $in->getBool();
 		}
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_0){
@@ -309,7 +309,7 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_0) {
 			$this->networkPermissions->encode($out);
 		}
-		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30 && $out->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40){
 			$out->putBool($this->isLoggingChat);
 		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_0){
