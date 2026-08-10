@@ -8,7 +8,7 @@ while getopts "p:f:l" OPTION 2> /dev/null; do
 			PHP_BINARY="$OPTARG"
 			;;
 		f)
-			POCKETMINE_FILE="$OPTARG"
+			ESSENTIAL_FILE="$OPTARG"
 			;;
 		l)
 			DO_LOOP="yes"
@@ -23,21 +23,26 @@ if [ "$PHP_BINARY" == "" ]; then
 	if [ -f ./bin/php7/bin/php ]; then
 		export PHPRC=""
 		PHP_BINARY="./bin/php7/bin/php"
+	elif [ -f ./bin/php/bin/php ]; then
+		export PHPRC=""
+		PHP_BINARY="./bin/php/bin/php"
 	elif [[ -n $(type php 2> /dev/null) ]]; then
 		PHP_BINARY=$(type -p php)
 	else
 		echo "Couldn't find a PHP binary in system PATH or $PWD/bin/php7/bin"
-		echo "Please refer to the installation instructions at https://doc.pmmp.io/en/rtfd/installation.html"
+		echo "Please refer to the PocketMine-MP installation instructions at https://doc.pmmp.io/en/rtfd/installation.html"
 		exit 1
 	fi
 fi
 
-if [ "$POCKETMINE_FILE" == "" ]; then
-	if [ -f ./PocketMine-MP.phar ]; then
-		POCKETMINE_FILE="./PocketMine-MP.phar"
+if [ "$ESSENTIAL_FILE" == "" ]; then
+	if [ -f ./Essential.phar ]; then
+		ESSENTIAL_FILE="./Essential.phar"
+	elif [ -f ./PocketMine-MP.phar ]; then
+		ESSENTIAL_FILE="./PocketMine-MP.phar"
 	else
-		echo "PocketMine-MP.phar not found"
-		echo "Downloads can be found at https://github.com/pmmp/PocketMine-MP/releases"
+		echo "Essential.phar not found"
+		echo "Downloads can be found at https://github.com/BakuTeam/Essential/releases"
 		exit 1
 	fi
 fi
@@ -72,7 +77,7 @@ if [ "$DO_LOOP" == "yes" ]; then
 		if [ ${LOOPS} -gt 0 ]; then
 			echo "Restarted $LOOPS times"
 		fi
-		"$PHP_BINARY" "$POCKETMINE_FILE" "$@"
+		"$PHP_BINARY" "$ESSENTIAL_FILE" "$@"
 		handle_exit_code $?
 		echo "To escape the loop, press CTRL+C now. Otherwise, wait 5 seconds for the server to restart."
 		echo ""
@@ -80,7 +85,7 @@ if [ "$DO_LOOP" == "yes" ]; then
 		((LOOPS++))
 	done
 else
-	"$PHP_BINARY" "$POCKETMINE_FILE" "$@"
+	"$PHP_BINARY" "$ESSENTIAL_FILE" "$@"
 	exitcode=$?
 	handle_exit_code $exitcode
 	exit $exitcode
