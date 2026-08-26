@@ -76,11 +76,12 @@ class SetScorePacket extends DataPacket implements ClientboundPacket{
 				}
 				$entry = new ScorePacketEntry();
 				$entry->scoreboardId = $in->getVarLong();
-				$entry->objectiveName = $in->readOptional(fn() => $in->getString()) ?? "";
 				if($actionOrd === self::ACTION_REMOVE){
 					$this->type = self::TYPE_REMOVE;
+					$entry->objectiveName = $in->readOptional(fn() => $in->getString()) ?? "";
 				}else{
 					$this->type = self::TYPE_CHANGE;
+					$entry->objectiveName = $in->getString();
 					$entry->score = $in->getLInt();
 					if($actionOrd === self::ACTION_CHANGE_FAKE_PLAYER){
 						$entry->type = ScorePacketEntry::TYPE_FAKE_PLAYER;
@@ -135,8 +136,10 @@ class SetScorePacket extends DataPacket implements ClientboundPacket{
 				$out->putUnsignedVarInt($actionOrd);
 				$out->putString(self::ACTION_STRINGS[$actionOrd]);
 				$out->putVarLong($entry->scoreboardId);
-				$out->writeOptional($entry->objectiveName, fn(string $name) => $out->putString($name));
-				if($actionOrd !== self::ACTION_REMOVE){
+				if($actionOrd === self::ACTION_REMOVE){
+					$out->writeOptional($entry->objectiveName, fn(string $name) => $out->putString($name));
+				}else{
+					$out->putString($entry->objectiveName);
 					$out->putLInt($entry->score);
 					if($actionOrd === self::ACTION_CHANGE_FAKE_PLAYER){
 						$out->putString($entry->customName ?? throw new \InvalidArgumentException("customName must be set for fake player entries"));
