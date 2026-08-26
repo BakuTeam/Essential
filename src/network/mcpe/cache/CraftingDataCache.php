@@ -42,7 +42,10 @@ use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\recipe\CraftingRecipeBlockName;
 use pocketmine\network\mcpe\protocol\types\recipe\FurnaceRecipe as ProtocolFurnaceRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\FurnaceRecipeBlockName;
+use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\types\recipe\IntIdMetaItemDescriptor;
+use pocketmine\network\mcpe\protocol\types\recipe\ItemDescriptor;
+use pocketmine\network\mcpe\protocol\types\recipe\StringIdMetaItemDescriptor;
 use pocketmine\network\mcpe\protocol\types\recipe\PotionContainerChangeRecipe as ProtocolPotionContainerChangeRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\PotionTypeRecipe as ProtocolPotionTypeRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\RecipeUnlockingRequirement;
@@ -213,20 +216,19 @@ final class CraftingDataCache{
 			}
 		}
 
+		$itemTypeDictionary = $converter->getItemTypeDictionary();
+
 		$potionTypeRecipes = [];
 		foreach($manager->getPotionTypeRecipes() as $recipe){
 			try{
-				$input = $converter->coreRecipeIngredientToNet($recipe->getInput())->getDescriptor();
-				$ingredient = $converter->coreRecipeIngredientToNet($recipe->getIngredient())->getDescriptor();
-				if(!$input instanceof IntIdMetaItemDescriptor || !$ingredient instanceof IntIdMetaItemDescriptor){
-					throw new AssumptionFailedError();
-				}
+				[$inputId, $inputMeta] = self::descriptorToNetItemIdMeta($itemTypeDictionary, $converter->coreRecipeIngredientToNet($recipe->getInput())->getDescriptor());
+				[$ingredientId, $ingredientMeta] = self::descriptorToNetItemIdMeta($itemTypeDictionary, $converter->coreRecipeIngredientToNet($recipe->getIngredient())->getDescriptor());
 				$output = $converter->coreItemStackToNet($recipe->getOutput());
 				$potionTypeRecipes[] = new ProtocolPotionTypeRecipe(
-					$input->getId(),
-					$input->getMeta(),
-					$ingredient->getId(),
-					$ingredient->getMeta(),
+					$inputId,
+					$inputMeta,
+					$ingredientId,
+					$ingredientMeta,
 					$output->getId(),
 					$output->getMeta()
 				);
@@ -236,18 +238,14 @@ final class CraftingDataCache{
 		}
 
 		$potionContainerChangeRecipes = [];
-		$itemTypeDictionary = $converter->getItemTypeDictionary();
 		foreach($manager->getPotionContainerChangeRecipes() as $recipe){
 			try{
 				$input = $itemTypeDictionary->fromStringId($recipe->getInputItemId());
-				$ingredient = $converter->coreRecipeIngredientToNet($recipe->getIngredient())->getDescriptor();
-				if(!$ingredient instanceof IntIdMetaItemDescriptor){
-					throw new AssumptionFailedError();
-				}
+				[$ingredientId, ] = self::descriptorToNetItemIdMeta($itemTypeDictionary, $converter->coreRecipeIngredientToNet($recipe->getIngredient())->getDescriptor());
 				$output = $itemTypeDictionary->fromStringId($recipe->getOutputItemId());
 				$potionContainerChangeRecipes[] = new ProtocolPotionContainerChangeRecipe(
 					$input,
-					$ingredient->getId(),
+					$ingredientId,
 					$output
 				);
 			}catch(\InvalidArgumentException|ItemTypeSerializeException){
@@ -257,5 +255,22 @@ final class CraftingDataCache{
 
 		Timings::$craftingDataCacheRebuild->stopTiming();
 		return CraftingDataPacket::create($recipesWithTypeIds, $potionTypeRecipes, $potionContainerChangeRecipes, [], true);
+	}
+
+	/**
+	 * Extracts the network item id and meta from a recipe ingredient descriptor, regardless of whether it uses the
+	 * legacy integer-id form (< 1.26.40) or the string-id form (>= 1.26.40).
+	 *
+	 * @return int[]
+	 * @phpstan-return array{int, int}
+	 */
+	private static function descriptorToNetItemIdMeta(ItemTypeDictionary $dictionary, ?ItemDescriptor $descriptor) : array{
+		if($descriptor instanceof IntIdMetaItemDescriptor){
+			return [$descriptor->getId(), $descriptor->getMeta()];
+		}
+		if($descriptor instanceof StringIdMetaItemDescriptor){
+			return [$dictionary->fromStringId($descriptor->getId()), $descriptor->getMeta()];
+		}
+		throw new AssumptionFailedError("Expected an int-id or string-id item descriptor for this recipe");
 	}
 }
