@@ -121,6 +121,12 @@ final class ShapedRecipe extends RecipeWithTypeId{
 		$recipeId = $in->getString();
 		$width = $in->getVarInt();
 		$height = $in->getVarInt();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$ingredientCount = $in->getUnsignedVarInt();
+			if($ingredientCount !== $width * $height){
+				throw new \InvalidArgumentException("Recipe ingredient count does not match its dimensions");
+			}
+		}
 		$input = [];
 		for($row = 0; $row < $height; ++$row){
 			for($column = 0; $column < $width; ++$column){
@@ -139,7 +145,9 @@ final class ShapedRecipe extends RecipeWithTypeId{
 			$symmetric = $in->getBool();
 
 			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_0){
-				$unlockingRequirement = RecipeUnlockingRequirement::read($in);
+				$unlockingRequirement = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40
+					? $in->readOptional(fn() => RecipeUnlockingRequirement::read($in))
+					: RecipeUnlockingRequirement::read($in);
 			}
 		}
 
@@ -152,6 +160,9 @@ final class ShapedRecipe extends RecipeWithTypeId{
 		$out->putString($this->recipeId);
 		$out->putVarInt($this->getWidth());
 		$out->putVarInt($this->getHeight());
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->putUnsignedVarInt($this->getWidth() * $this->getHeight());
+		}
 		foreach($this->input as $row){
 			foreach($row as $ingredient){
 				$out->putRecipeIngredient($ingredient);
@@ -170,7 +181,11 @@ final class ShapedRecipe extends RecipeWithTypeId{
 			$out->putBool($this->symmetric);
 
 			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_0){
-				$this->unlockingRequirement->write($out);
+				if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+					$out->writeOptional($this->unlockingRequirement, fn(RecipeUnlockingRequirement $v) => $v->write($out));
+				}else{
+					$this->unlockingRequirement->write($out);
+				}
 			}
 		}
 

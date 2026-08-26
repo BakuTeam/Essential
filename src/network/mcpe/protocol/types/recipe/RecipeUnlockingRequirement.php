@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace pocketmine\network\mcpe\protocol\types\recipe;
 
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use function count;
 
 final class RecipeUnlockingRequirement{
@@ -46,6 +47,20 @@ final class RecipeUnlockingRequirement{
 	public function getUnlockingIngredients() : ?array{ return $this->unlockingIngredients; }
 
 	public static function read(PacketSerializer $in) : self{
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$unlockingContext = $in->getVarInt();
+			$unlockingIngredients = $in->readOptional(function() use ($in) : array{
+				$result = [];
+				for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+					$result[] = $in->getRecipeIngredient();
+				}
+				return $result;
+			});
+			if($unlockingContext !== 0 && $unlockingIngredients !== null){
+				throw new \InvalidArgumentException("Unlocking ingredients are only valid for context NONE");
+			}
+			return new self($unlockingIngredients);
+		}
 		//I don't know what the point of this structure is. It could easily have been a list<RecipeIngredient> instead.
 		//It's basically just an optional list, which could have been done by an empty list wherever it's not needed.
 		$unlockingContext = $in->getBool();
@@ -61,6 +76,16 @@ final class RecipeUnlockingRequirement{
 	}
 
 	public function write(PacketSerializer $out) : void{
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->putVarInt($this->unlockingIngredients === null ? 1 : 0);
+			$out->writeOptional($this->unlockingIngredients, function(array $ingredients) use ($out) : void{
+				$out->putUnsignedVarInt(count($ingredients));
+				foreach($ingredients as $ingredient){
+					$out->putRecipeIngredient($ingredient);
+				}
+			});
+			return;
+		}
 		$out->putBool($this->unlockingIngredients === null);
 		if($this->unlockingIngredients !== null){
 			$out->putUnsignedVarInt(count($this->unlockingIngredients));

@@ -67,6 +67,37 @@ class PlayerListPacket extends DataPacket implements ClientboundPacket{
 	}
 
 	protected function decodePayload(PacketSerializer $in) : void{
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$count = $in->getUnsignedVarInt();
+			for($i = 0; $i < $count; ++$i){
+				$wireType = $in->getUnsignedVarInt(); //0 = remove, 1 = add
+				$innerType = $in->getByte(); //0 = add, 1 = remove
+				$expectedInnerType = $wireType === 1 ? 0 : 1;
+				if(($wireType !== 0 && $wireType !== 1) || $innerType !== $expectedInnerType){
+					throw new PacketDecodeException("Invalid 1.26.40 player-list entry type $wireType/$innerType");
+				}
+				$entry = new PlayerListEntry();
+				if($wireType === 1){
+					$this->type = self::TYPE_ADD;
+					$entry->uuid = $in->getUUID();
+					$entry->actorUniqueId = $in->getActorUniqueId();
+					$entry->username = $in->getString();
+					$entry->xboxUserId = $in->getString();
+					$entry->platformChatId = $in->getString();
+					$entry->buildPlatform = $in->getLInt();
+					$entry->skinData = $in->getSkin();
+					$entry->isTeacher = $in->getBool();
+					$entry->isHost = $in->getBool();
+					$entry->isSubClient = $in->getBool();
+					$entry->color = Color::fromARGB($in->getLInt());
+				}else{
+					$this->type = self::TYPE_REMOVE;
+					$entry->uuid = $in->getUUID();
+				}
+				$this->entries[] = $entry;
+			}
+			return;
+		}
 		$this->type = $in->getByte();
 		$count = $in->getUnsignedVarInt();
 		for($i = 0; $i < $count; ++$i){
@@ -102,6 +133,30 @@ class PlayerListPacket extends DataPacket implements ClientboundPacket{
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->putUnsignedVarInt(count($this->entries));
+			foreach($this->entries as $entry){
+				$isAdd = $this->type === self::TYPE_ADD;
+				$out->putUnsignedVarInt($isAdd ? 1 : 0);
+				$out->putByte($isAdd ? 0 : 1);
+				if($isAdd){
+					$out->putUUID($entry->uuid);
+					$out->putActorUniqueId($entry->actorUniqueId);
+					$out->putString($entry->username);
+					$out->putString($entry->xboxUserId);
+					$out->putString($entry->platformChatId);
+					$out->putLInt($entry->buildPlatform);
+					$out->putSkin($entry->skinData);
+					$out->putBool($entry->isTeacher);
+					$out->putBool($entry->isHost);
+					$out->putBool($entry->isSubClient);
+					$out->putLInt(($entry->color ?? new Color(255, 255, 255))->toARGB());
+				}else{
+					$out->putUUID($entry->uuid);
+				}
+			}
+			return;
+		}
 		$out->putByte($this->type);
 		$out->putUnsignedVarInt(count($this->entries));
 		foreach($this->entries as $entry){

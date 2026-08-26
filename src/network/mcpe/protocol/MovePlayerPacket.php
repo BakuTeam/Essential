@@ -103,7 +103,12 @@ class MovePlayerPacket extends DataPacket implements ClientboundPacket, Serverbo
 		$this->mode = $in->getByte();
 		$this->onGround = $in->getBool();
 		$this->ridingActorRuntimeId = $in->getActorRuntimeId();
-		if($this->mode === MovePlayerPacket::MODE_TELEPORT){
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$telemetry = $in->readOptional(fn() => [$in->getLInt(), $in->getLInt()]);
+			if($telemetry !== null){
+				[$this->teleportCause, $this->teleportItem] = $telemetry;
+			}
+		}elseif($this->mode === MovePlayerPacket::MODE_TELEPORT){
 			$this->teleportCause = $in->getLInt();
 			$this->teleportItem = $in->getLInt();
 		}
@@ -119,7 +124,13 @@ class MovePlayerPacket extends DataPacket implements ClientboundPacket, Serverbo
 		$out->putByte($this->mode);
 		$out->putBool($this->onGround);
 		$out->putActorRuntimeId($this->ridingActorRuntimeId);
-		if($this->mode === MovePlayerPacket::MODE_TELEPORT){
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$telemetry = $this->mode === self::MODE_TELEPORT ? [$this->teleportCause, $this->teleportItem] : null;
+			$out->writeOptional($telemetry, function(array $data) use ($out) : void{
+				$out->putLInt($data[0]);
+				$out->putLInt($data[1]);
+			});
+		}elseif($this->mode === MovePlayerPacket::MODE_TELEPORT){
 			$out->putLInt($this->teleportCause);
 			$out->putLInt($this->teleportItem);
 		}

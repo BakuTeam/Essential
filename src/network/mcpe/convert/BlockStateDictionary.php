@@ -271,8 +271,8 @@ final class BlockStateDictionary{
 
 		$compound->setTag("states", $states);
 
-		$hash = hash("fnv1a32", $stream->write(new TreeRoot($compound)));
-		return hexdec($hash);
+		$hash = (int) hexdec(hash("fnv1a32", $stream->write(new TreeRoot($compound))));
+		return $hash > 0x7fffffff ? $hash - 0x100000000 : $hash;
 	}
 
 	public static function loadFromString(string $blockPaletteContents, string $metaMapContents, bool $useHash = false, ?\Closure $upgradeFunc = null) : self{

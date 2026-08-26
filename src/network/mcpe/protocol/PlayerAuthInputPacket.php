@@ -52,6 +52,8 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 	private float $moveVecX;
 	private float $moveVecZ;
 	private int $inputFlags;
+	/** @var array<int, true> Used by the sparse 1.26.40 flag representation. */
+	private array $sparseInputFlags = [];
 	private int $inputMode;
 	private int $playMode;
 	private int $interactionMode;
@@ -321,6 +323,9 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 	public function getCameraOrientation() : Vector3{ return $this->cameraOrientation; }
 
 	public function hasFlag(int $flag) : bool{
+		if($this->sparseInputFlags !== []){
+			return isset($this->sparseInputFlags[$flag]);
+		}
 		return ($this->inputFlags & (1 << $flag)) !== 0;
 	}
 
@@ -331,11 +336,26 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		$this->moveVecX = $in->getLFloat();
 		$this->moveVecZ = $in->getLFloat();
 		$this->headYaw = $in->getLFloat();
-		$this->inputFlags = $in->getUnsignedVarLong();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$in->readDummyOptional();
+			$this->inputFlags = 0;
+			for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+				$flag = $in->getVarInt();
+				if($flag < 0 || $flag >= PlayerAuthInputFlags::NUMBER_OF_FLAGS || isset($this->sparseInputFlags[$flag])){
+					throw new PacketDecodeException("Invalid or duplicate player input flag $flag");
+				}
+				$this->sparseInputFlags[$flag] = true;
+				if($flag < 63){
+					$this->inputFlags |= 1 << $flag;
+				}
+			}
+		}else{
+			$this->inputFlags = $in->getUnsignedVarLong();
+		}
 		$this->inputMode = $in->getUnsignedVarInt();
 		$this->playMode = $in->getUnsignedVarInt();
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_0){
-			$this->interactionMode = $in->getUnsignedVarInt();
+			$this->interactionMode = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $in->getVarInt() : $in->getUnsignedVarInt();
 		}
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_40){
 			$this->interactRotation = $in->getVector2();
@@ -348,7 +368,31 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 			$this->delta = $in->getVector3();
 		}
 
-		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_210){
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$this->itemInteractionData = $in->readDoubleOptional(fn() => ItemInteractionData::read($in));
+			$this->itemStackRequest = $in->readDoubleOptional(fn() => ItemStackRequest::read($in));
+			$this->blockActions = $in->readDoubleOptional(function() use ($in) : array{
+				$result = [];
+				for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+					$actionType = $in->getVarInt();
+					if(!PlayerBlockActionWithBlockInfo::isValidActionType($actionType) && $actionType !== PlayerAction::STOP_BREAK){
+						throw new PacketDecodeException("Unexpected block action type $actionType");
+					}
+					$result[] = PlayerBlockActionWithBlockInfo::read($in, $actionType);
+				}
+				return $result;
+			});
+			$vehicleRotation = $in->readDoubleOptional(fn() => $in->getVector2());
+			$vehicleActorUniqueId = $in->readDoubleOptional(fn() => $in->getActorUniqueId());
+			if(($vehicleRotation === null) !== ($vehicleActorUniqueId === null)){
+				throw new PacketDecodeException("Vehicle rotation and actor unique ID must both be present or absent");
+			}
+			if($vehicleRotation !== null){
+				$this->vehicleVecX = $vehicleRotation->x;
+				$this->vehicleVecZ = $vehicleRotation->y;
+				$this->clientPredictedVehicleActorUniqueId = $vehicleActorUniqueId;
+			}
+		}elseif($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_210){
 			if($this->hasFlag(PlayerAuthInputFlags::PERFORM_ITEM_INTERACTION)){
 				$this->itemInteractionData = ItemInteractionData::read($in);
 			}
@@ -368,7 +412,7 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 				}
 			}
 		}
-		if($this->hasFlag(PlayerAuthInputFlags::IN_CLIENT_PREDICTED_VEHICLE)){
+		if($in->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40 && $this->hasFlag(PlayerAuthInputFlags::IN_CLIENT_PREDICTED_VEHICLE)){
 
 			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_70){
 				$this->vehicleVecX = $in->getLFloat();
@@ -408,11 +452,31 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		$out->putLFloat($this->moveVecX);
 		$out->putLFloat($this->moveVecZ);
 		$out->putLFloat($this->headYaw);
-		$out->putUnsignedVarLong($inputFlags);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->writeDummyOptional();
+			$flags = $this->sparseInputFlags !== [] ? array_keys($this->sparseInputFlags) : [];
+			if($flags === []){
+				for($i = 0; $i < 63; ++$i){
+					if(($inputFlags & (1 << $i)) !== 0){
+						$flags[] = $i;
+					}
+				}
+			}
+			$out->putUnsignedVarInt(count($flags));
+			foreach($flags as $flag){
+				$out->putVarInt($flag);
+			}
+		}else{
+			$out->putUnsignedVarLong($inputFlags);
+		}
 		$out->putUnsignedVarInt($this->inputMode);
 		$out->putUnsignedVarInt($this->playMode);
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_0){
-			$out->putUnsignedVarInt($this->interactionMode);
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				$out->putVarInt($this->interactionMode);
+			}else{
+				$out->putUnsignedVarInt($this->interactionMode);
+			}
 		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_40){
 			$out->putVector2($this->interactRotation);
@@ -425,7 +489,25 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 			$out->putVector3($this->delta);
 		}
 
-		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_210){
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->writeDoubleOptional($this->itemInteractionData, fn(ItemInteractionData $v) => $v->write($out));
+			$out->writeDoubleOptional($this->itemStackRequest, fn(ItemStackRequest $v) => $v->write($out));
+			$out->writeDoubleOptional($this->blockActions, function(array $actions) use ($out) : void{
+				$out->putUnsignedVarInt(count($actions));
+				foreach($actions as $action){
+					$out->putVarInt($action->getActionType());
+					if($action instanceof PlayerBlockActionWithBlockInfo){
+						$action->write($out);
+					}else{
+						$out->putBlockPosition(new \pocketmine\network\mcpe\protocol\types\BlockPosition(0, 0, 0));
+						$out->putVarInt(0);
+					}
+				}
+			});
+			$vehicleRotation = $this->clientPredictedVehicleActorUniqueId !== null ? new Vector2($this->vehicleVecX, $this->vehicleVecZ) : null;
+			$out->writeDoubleOptional($vehicleRotation, fn(Vector2 $v) => $out->putVector2($v));
+			$out->writeDoubleOptional($this->clientPredictedVehicleActorUniqueId, fn(int $v) => $out->putActorUniqueId($v));
+		}elseif($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_210){
 			if($this->itemInteractionData !== null){
 				$this->itemInteractionData->write($out);
 			}
@@ -441,7 +523,7 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 			}
 		}
 
-		if($this->clientPredictedVehicleActorUniqueId !== null && $out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_60){
+		if($out->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40 && $this->clientPredictedVehicleActorUniqueId !== null && $out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_60){
 			$out->putActorUniqueId($this->clientPredictedVehicleActorUniqueId);
 		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_70){

@@ -82,6 +82,37 @@ class CraftingDataPacket extends DataPacket implements ClientboundPacket{
 	}
 
 	protected function decodePayload(PacketSerializer $in) : void{
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$readRecipes = function(int $type, callable $decoder) use ($in) : void{
+				for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+					$this->recipesWithTypeIds[] = $decoder($type, $in);
+				}
+			};
+			$readRecipes(self::ENTRY_SHAPED, ShapedRecipe::decode(...));
+			$readRecipes(self::ENTRY_SHAPELESS, ShapelessRecipe::decode(...));
+			$readRecipes(self::ENTRY_MULTI, MultiRecipe::decode(...));
+			$readRecipes(self::ENTRY_USER_DATA_SHAPELESS, ShapelessRecipe::decode(...));
+			$readRecipes(self::ENTRY_SHAPELESS_CHEMISTRY, ShapelessRecipe::decode(...));
+			$readRecipes(self::ENTRY_SHAPED_CHEMISTRY, ShapedRecipe::decode(...));
+			$readRecipes(self::ENTRY_SMITHING_TRANSFORM, SmithingTransformRecipe::decode(...));
+			$readRecipes(self::ENTRY_SMITHING_TRIM, SmithingTrimRecipe::decode(...));
+			for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+				$this->potionTypeRecipes[] = new PotionTypeRecipe($in->getVarInt(), $in->getVarInt(), $in->getVarInt(), $in->getVarInt(), $in->getVarInt(), $in->getVarInt());
+			}
+			for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+				$this->potionContainerRecipes[] = new PotionContainerChangeRecipe($in->getVarInt(), $in->getVarInt(), $in->getVarInt());
+			}
+			for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+				$inputIdAndData = $in->getVarInt();
+				$outputs = [];
+				for($j = 0, $outputCount = $in->getUnsignedVarInt(); $j < $outputCount; ++$j){
+					$outputs[] = new MaterialReducerRecipeOutput($in->getVarInt(), $in->getVarInt());
+				}
+				$this->materialReducerRecipes[] = new MaterialReducerRecipe($inputIdAndData >> 16, $inputIdAndData & 0x7fff, $outputs);
+			}
+			$this->cleanRecipes = $in->getBool();
+			return;
+		}
 		$recipeCount = $in->getUnsignedVarInt();
 		$previousType = "none";
 		for($i = 0; $i < $recipeCount; ++$i){
@@ -131,6 +162,53 @@ class CraftingDataPacket extends DataPacket implements ClientboundPacket{
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$writeRecipes = function(int $type) use ($out) : void{
+				$recipes = array_values(array_filter(
+					$this->recipesWithTypeIds,
+					static fn(RecipeWithTypeId $recipe) : bool => $recipe->getTypeId() === $type
+				));
+				$out->putUnsignedVarInt(count($recipes));
+				foreach($recipes as $recipe){
+					$recipe->encode($out);
+				}
+			};
+			$writeRecipes(self::ENTRY_SHAPED);
+			$writeRecipes(self::ENTRY_SHAPELESS);
+			$writeRecipes(self::ENTRY_MULTI);
+			$writeRecipes(self::ENTRY_USER_DATA_SHAPELESS);
+			$writeRecipes(self::ENTRY_SHAPELESS_CHEMISTRY);
+			$writeRecipes(self::ENTRY_SHAPED_CHEMISTRY);
+			$writeRecipes(self::ENTRY_SMITHING_TRANSFORM);
+			$writeRecipes(self::ENTRY_SMITHING_TRIM);
+
+			$out->putUnsignedVarInt(count($this->potionTypeRecipes));
+			foreach($this->potionTypeRecipes as $recipe){
+				$out->putVarInt($recipe->getInputItemId());
+				$out->putVarInt($recipe->getInputItemMeta());
+				$out->putVarInt($recipe->getIngredientItemId());
+				$out->putVarInt($recipe->getIngredientItemMeta());
+				$out->putVarInt($recipe->getOutputItemId());
+				$out->putVarInt($recipe->getOutputItemMeta());
+			}
+			$out->putUnsignedVarInt(count($this->potionContainerRecipes));
+			foreach($this->potionContainerRecipes as $recipe){
+				$out->putVarInt($recipe->getInputItemId());
+				$out->putVarInt($recipe->getIngredientItemId());
+				$out->putVarInt($recipe->getOutputItemId());
+			}
+			$out->putUnsignedVarInt(count($this->materialReducerRecipes));
+			foreach($this->materialReducerRecipes as $recipe){
+				$out->putVarInt(($recipe->getInputItemId() << 16) | $recipe->getInputItemMeta());
+				$out->putUnsignedVarInt(count($recipe->getOutputs()));
+				foreach($recipe->getOutputs() as $output){
+					$out->putVarInt($output->getItemId());
+					$out->putVarInt($output->getCount());
+				}
+			}
+			$out->putBool($this->cleanRecipes);
+			return;
+		}
 		$out->putUnsignedVarInt(count($this->recipesWithTypeIds));
 		foreach($this->recipesWithTypeIds as $d){
 			$out->putVarInt($d->getTypeId());

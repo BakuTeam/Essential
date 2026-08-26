@@ -413,12 +413,44 @@ class PacketSerializer extends BinaryStream{
 	 * @throws BinaryDataException
 	 */
 	public function getItemStackWithoutStackId(bool $decodeExtraData = true) : ItemStack{
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$id = $this->getVarInt();
+			$count = $this->getLShort();
+			$meta = $this->getUnsignedVarInt();
+			$blockRuntimeId = $this->getVarInt();
+			$rawExtraData = $this->getString();
+
+			if(!$decodeExtraData){
+				return new ItemStack($id, $meta, $count, $blockRuntimeId, null, [], [], null, $rawExtraData);
+			}
+			$extraData = self::decoder($this->getProtocolId(), $rawExtraData, 0);
+			$stack = self::readExtraItemStackData($extraData, $id, $meta, $count, $blockRuntimeId, $rawExtraData);
+			if(!$extraData->feof()){
+				throw new PacketDecodeException("Unexpected trailing extradata for network item $id");
+			}
+			return $stack;
+		}
 		return $this->getItemStack(function() : void{
 			//NOOP
 		}, $decodeExtraData);
 	}
 
 	public function putItemStackWithoutStackId(ItemStack $item) : void{
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$this->putVarInt($item->getId());
+			$this->putLShort($item->getCount());
+			$this->putUnsignedVarInt($item->getMeta());
+			$this->putVarInt($item->getBlockRuntimeId());
+
+			$rawExtraData = $item->getRawExtraData();
+			if($rawExtraData === null){
+				$extraData = self::encoder($this->getProtocolId());
+				self::putExtraItemStackData($extraData, $item);
+				$rawExtraData = $extraData->getBuffer();
+			}
+			$this->putString($rawExtraData);
+			return;
+		}
 		$this->putItemStack($item, function() : void{
 			//NOOP
 		});
@@ -437,7 +469,9 @@ class PacketSerializer extends BinaryStream{
 
 		$stackId = 0;
 		if($this->getBool()){
-			$this->getUnsignedVarInt(); //variant, currently unused by the server
+			if($this->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40){
+				$this->getUnsignedVarInt(); //legacy stack-ID variant
+			}
 			$stackId = $this->getVarInt();
 		}
 
@@ -468,7 +502,9 @@ class PacketSerializer extends BinaryStream{
 
 		$this->putBool($hasNetId = $itemStackWrapper->getStackId() !== 0);
 		if($hasNetId){
-			$this->putUnsignedVarInt(0); //variant, currently unused by the client
+			if($this->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40){
+				$this->putUnsignedVarInt(0); //legacy stack-ID variant
+			}
 			$this->putVarInt($itemStackWrapper->getStackId());
 		}
 
@@ -759,6 +795,12 @@ class PacketSerializer extends BinaryStream{
 		for($i = 0; $i < $count; ++$i){
 			$key = $this->getUnsignedVarInt();
 			$type = $this->getUnsignedVarInt();
+			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				$duplicateType = $this->getByte();
+				if($duplicateType !== $type){
+					throw new PacketDecodeException("Mismatched entity metadata type IDs $type and $duplicateType");
+				}
+			}
 
 			$data[$key] = $this->readMetadataProperty($type);
 		}
@@ -796,6 +838,9 @@ class PacketSerializer extends BinaryStream{
 		foreach($data as $key => $d){
 			$this->putUnsignedVarInt($key);
 			$this->putUnsignedVarInt($d->getTypeId());
+			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				$this->putByte($d->getTypeId());
+			}
 			$d->write($this);
 		}
 	}
@@ -938,9 +983,10 @@ class PacketSerializer extends BinaryStream{
 	}
 
 	private function readGameRule(int $type, bool $isPlayerModifiable, bool $isStartGame) : GameRule{
+		$isLegacyStartGame = $isStartGame && $this->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40;
 		return match($type){
 			BoolGameRule::ID => BoolGameRule::decode($this, $isPlayerModifiable),
-			IntGameRule::ID => IntGameRule::decode($this, $isPlayerModifiable, $isStartGame),
+			IntGameRule::ID => IntGameRule::decode($this, $isPlayerModifiable, $isLegacyStartGame),
 			FloatGameRule::ID => FloatGameRule::decode($this, $isPlayerModifiable),
 			default => throw new PacketDecodeException("Unknown gamerule type $type"),
 		};
@@ -986,7 +1032,7 @@ class PacketSerializer extends BinaryStream{
 				$this->putBool($rule->isPlayerModifiable());
 			}
 			$this->putUnsignedVarInt($rule->getTypeId());
-			$rule->encode($this, $isStartGame);
+			$rule->encode($this, $isStartGame && $this->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40);
 		}
 	}
 
@@ -1241,5 +1287,27 @@ class PacketSerializer extends BinaryStream{
 		}else{
 			$this->putBool(false);
 		}
+	}
+
+	/** 1.26.40 wraps some optionals in a mandatory-present outer optional. */
+	public function readDummyOptional() : void{
+		$dummy = $this->getByte();
+		if($dummy !== 1){
+			throw new PacketDecodeException("Dummy optional first byte should be 1, got $dummy");
+		}
+	}
+
+	public function writeDummyOptional() : void{
+		$this->putByte(1);
+	}
+
+	public function readDoubleOptional(\Closure $reader) : mixed{
+		$this->readDummyOptional();
+		return $this->readOptional($reader);
+	}
+
+	public function writeDoubleOptional(mixed $value, \Closure $writer) : void{
+		$this->writeDummyOptional();
+		$this->writeOptional($value, $writer);
 	}
 }

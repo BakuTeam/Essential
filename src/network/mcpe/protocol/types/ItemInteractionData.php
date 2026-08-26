@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace pocketmine\network\mcpe\protocol\types;
 
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\inventory\InventoryTransactionChangedSlotsHack;
 use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
 use function count;
@@ -37,7 +38,7 @@ final class ItemInteractionData{
 	 */
 	public function __construct(
 		private int $requestId,
-		private array $requestChangedSlots,
+		private ?array $requestChangedSlots,
 		private UseItemTransactionData $transactionData
 	){}
 
@@ -48,7 +49,7 @@ final class ItemInteractionData{
 	/**
 	 * @return InventoryTransactionChangedSlotsHack[]
 	 */
-	public function getRequestChangedSlots() : array{
+	public function getRequestChangedSlots() : ?array{
 		return $this->requestChangedSlots;
 	}
 
@@ -58,6 +59,20 @@ final class ItemInteractionData{
 
 	public static function read(PacketSerializer $in) : self{
 		$requestId = $in->getVarInt();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$requestChangedSlots = $in->readOptional(function() use ($in) : array{
+				$result = [];
+				for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
+					$result[] = InventoryTransactionChangedSlotsHack::read($in);
+				}
+				return $result;
+			});
+			$in->readDummyOptional();
+			$in->readDummyOptional();
+			$transactionData = new UseItemTransactionData();
+			$transactionData->decode($in);
+			return new self($requestId, $requestChangedSlots, $transactionData);
+		}
 		$requestChangedSlots = [];
 		if($requestId !== 0){
 			$len = $in->getUnsignedVarInt();
@@ -72,6 +87,18 @@ final class ItemInteractionData{
 
 	public function write(PacketSerializer $out) : void{
 		$out->putVarInt($this->requestId);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->writeOptional($this->requestChangedSlots, function(array $slots) use ($out) : void{
+				$out->putUnsignedVarInt(count($slots));
+				foreach($slots as $slot){
+					$slot->write($out);
+				}
+			});
+			$out->writeDummyOptional();
+			$out->writeDummyOptional();
+			$this->transactionData->encode($out);
+			return;
+		}
 		if($this->requestId !== 0){
 			$out->putUnsignedVarInt(count($this->requestChangedSlots));
 			foreach($this->requestChangedSlots as $changedSlot){

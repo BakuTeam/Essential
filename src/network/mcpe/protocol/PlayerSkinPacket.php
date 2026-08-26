@@ -55,7 +55,9 @@ class PlayerSkinPacket extends DataPacket implements ClientboundPacket, Serverbo
 		$this->skin = $in->getSkin();
 		$this->newSkinName = $in->getString();
 		$this->oldSkinName = $in->getString();
-		$this->skin->setVerified($in->getBool());
+		if($in->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40){
+			$this->skin->setVerified($in->getBool());
+		}
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
@@ -63,7 +65,9 @@ class PlayerSkinPacket extends DataPacket implements ClientboundPacket, Serverbo
 		$out->putSkin($this->skin);
 		$out->putString($this->newSkinName);
 		$out->putString($this->oldSkinName);
-		$out->putBool($this->skin->isVerified());
+		if($out->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40){
+			$out->putBool($this->skin->isVerified());
+		}
 	}
 
 	public function handle(PacketHandlerInterface $handler) : bool{

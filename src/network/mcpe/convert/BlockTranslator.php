@@ -273,11 +273,14 @@ final class BlockTranslator{
 
 	private static function setupHashProtocols() {
 		if (!isset(self::$HASH_PROTOCOLS)) {
-			self::$HASH_PROTOCOLS = [
-				ProtocolInfo::PROTOCOL_1_21_120 => function(BlockStateData $data) : BlockStateData {
-					return $data;
+			self::$HASH_PROTOCOLS = [];
+			foreach(array_keys(self::PATHS) as $protocolId){
+				if($protocolId >= ProtocolInfo::PROTOCOL_1_21_120){
+					self::$HASH_PROTOCOLS[$protocolId] = static function(BlockStateData $data) : BlockStateData{
+						return $data;
+					};
 				}
-			];
+			}
 		}
 	}
 
@@ -353,4 +356,6 @@ final class BlockTranslator{
 	public function getBlockStateDictionary() : BlockStateDictionary{ return $this->blockStateDictionary; }
 
 	public function getFallbackStateData() : BlockStateData{ return $this->fallbackStateData; }
+
+	public function getFallbackStateId() : int{ return $this->fallbackStateId; }
 }

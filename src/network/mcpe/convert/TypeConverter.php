@@ -163,9 +163,10 @@ class TypeConverter{
 			$oldStringId = $ingredient->getItemId();
 			[$stringId, $meta] = $this->itemDataDowngrader->downgrade($oldStringId, 0);
 
-			$id = $this->itemTypeDictionary->fromStringId($stringId);
 			$meta = $meta === 0 && $stringId === $oldStringId ? self::RECIPE_INPUT_WILDCARD_META : $meta; // downgrader returns the same meta
-			$descriptor = new IntIdMetaItemDescriptor($id, $meta);
+			$descriptor = $this->protocolId >= ProtocolInfo::PROTOCOL_1_26_40
+				? new StringIdMetaItemDescriptor($stringId, $meta)
+				: new IntIdMetaItemDescriptor($this->itemTypeDictionary->fromStringId($stringId), $meta);
 		}elseif($ingredient instanceof ExactRecipeIngredient){
 			$item = $ingredient->getItem();
 			[$id, $meta, $blockRuntimeId] = $this->itemTranslator->toNetworkId($item);
@@ -175,7 +176,9 @@ class TypeConverter{
 					throw new AssumptionFailedError("Every block state should have an associated meta value");
 				}
 			}
-			$descriptor = new IntIdMetaItemDescriptor($id, $meta);
+			$descriptor = $this->protocolId >= ProtocolInfo::PROTOCOL_1_26_40
+				? new StringIdMetaItemDescriptor($this->itemTypeDictionary->fromIntId($id), $meta)
+				: new IntIdMetaItemDescriptor($id, $meta);
 		}elseif($ingredient instanceof TagWildcardRecipeIngredient){
 			if($this->protocolId < ProtocolInfo::PROTOCOL_1_19_30){
 				throw new \InvalidArgumentException("TagWildcardRecipeIngredient: not supported below 1.19.30");
