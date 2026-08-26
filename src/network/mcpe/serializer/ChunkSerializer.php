@@ -255,10 +255,8 @@ final class ChunkSerializer{
 
 		$blockStateDictionary = $blockTranslator->getBlockStateDictionary();
 
-		$fallbackBlockId = 2; //grass
-		$fallbackBlockState = $blockStateDictionary->generateDataFromStateId($fallbackBlockId);
-		$infoUpdateData = $blockTranslator->getFallbackStateData();
-		$infoUpdateNetworkId = $blockStateDictionary->lookupStateIdFromData($infoUpdateData);
+		$fallbackStateData = $blockTranslator->getFallbackStateData();
+		$fallbackNetworkId = $blockTranslator->getFallbackStateId();
 
 		foreach($layers as $blocks){
 			$bitsPerBlock = $blocks->getBitsPerBlock();
@@ -280,35 +278,22 @@ final class ChunkSerializer{
 				foreach($palette as $p){
 					try{
 						//TODO: introduce a binary cache for this
-						$networkId = $blockTranslator->internalIdToNetworkId($p);
-						$state = $blockStateDictionary->generateDataFromStateId($networkId);
-						if($state === null){
-							$state = $infoUpdateData;
-						}
-
-						if($state->getName() === $infoUpdateData->getName() && $fallbackBlockState !== null){
-							$state = $fallbackBlockState;
-						}
-
-						$stream->put($nbtSerializer->write(new TreeRoot($state->toNbt())));
-					}catch(\Throwable $e){
-						$state = $fallbackBlockState ?? $infoUpdateData;
-						$stream->put($nbtSerializer->write(new TreeRoot($state->toNbt())));
+						$state = $blockStateDictionary->generateDataFromStateId($blockTranslator->internalIdToNetworkId($p)) ?? $fallbackStateData;
+					}catch(\Throwable){
+						$state = $fallbackStateData;
 					}
+
+					$stream->put($nbtSerializer->write(new TreeRoot($state->toNbt())));
 				}
 			}else{
 				foreach($palette as $p){
 					try{
 						$networkId = $blockTranslator->internalIdToNetworkId($p);
-
-						if($networkId === $infoUpdateNetworkId && $fallbackBlockId > 0){
-							$networkId = $fallbackBlockId;
-						}
-
-						$stream->put(Binary::writeVarInt($networkId));
-					}catch(\Throwable $e){
-						$stream->put(Binary::writeVarInt($fallbackBlockId));
+					}catch(\Throwable){
+						$networkId = $fallbackNetworkId;
 					}
+
+					$stream->put(Binary::writeVarInt($networkId));
 				}
 			}
 		}
