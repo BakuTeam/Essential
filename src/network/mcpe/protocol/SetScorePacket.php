@@ -36,6 +36,18 @@ class SetScorePacket extends DataPacket implements ClientboundPacket{
 	public const TYPE_CHANGE = 0;
 	public const TYPE_REMOVE = 1;
 
+	//1.26.40+ per-entry action ordinals and their string discriminators
+	private const ACTION_REMOVE = 0;
+	private const ACTION_CHANGE_PLAYER = 1;
+	private const ACTION_CHANGE_ENTITY = 2;
+	private const ACTION_CHANGE_FAKE_PLAYER = 3;
+	private const ACTION_STRINGS = [
+		self::ACTION_REMOVE => "remove",
+		self::ACTION_CHANGE_PLAYER => "changeplayer",
+		self::ACTION_CHANGE_ENTITY => "changeentity",
+		self::ACTION_CHANGE_FAKE_PLAYER => "changefakeplayer",
+	];
+
 	public int $type;
 	/** @var ScorePacketEntry[] */
 	public array $entries = [];
@@ -52,6 +64,36 @@ class SetScorePacket extends DataPacket implements ClientboundPacket{
 	}
 
 	protected function decodePayload(PacketSerializer $in) : void{
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			//1.26.40 dropped the top-level change/remove byte in favour of a per-entry action (ordinal + matching
+			//string), made the objective name optional, and only writes the score for non-remove actions.
+			for($i = 0, $i2 = $in->getUnsignedVarInt(); $i < $i2; ++$i){
+				$actionOrd = $in->getUnsignedVarInt();
+				$actionStr = $in->getString();
+				$expectedStr = self::ACTION_STRINGS[$actionOrd] ?? null;
+				if($expectedStr === null || $actionStr !== $expectedStr){
+					throw new PacketDecodeException("Unexpected score packet entry action $actionOrd/$actionStr");
+				}
+				$entry = new ScorePacketEntry();
+				$entry->scoreboardId = $in->getVarLong();
+				$entry->objectiveName = $in->readOptional(fn() => $in->getString()) ?? "";
+				if($actionOrd === self::ACTION_REMOVE){
+					$this->type = self::TYPE_REMOVE;
+				}else{
+					$this->type = self::TYPE_CHANGE;
+					$entry->score = $in->getLInt();
+					if($actionOrd === self::ACTION_CHANGE_FAKE_PLAYER){
+						$entry->type = ScorePacketEntry::TYPE_FAKE_PLAYER;
+						$entry->customName = $in->getString();
+					}else{
+						$entry->type = $actionOrd === self::ACTION_CHANGE_PLAYER ? ScorePacketEntry::TYPE_PLAYER : ScorePacketEntry::TYPE_ENTITY;
+						$entry->actorUniqueId = $in->getActorUniqueId();
+					}
+				}
+				$this->entries[] = $entry;
+			}
+			return;
+		}
 		$this->type = $in->getByte();
 		for($i = 0, $i2 = $in->getUnsignedVarInt(); $i < $i2; ++$i){
 			$entry = new ScorePacketEntry();
@@ -77,6 +119,34 @@ class SetScorePacket extends DataPacket implements ClientboundPacket{
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->putUnsignedVarInt(count($this->entries));
+			foreach($this->entries as $entry){
+				if($this->type === self::TYPE_REMOVE){
+					$actionOrd = self::ACTION_REMOVE;
+				}else{
+					$actionOrd = match($entry->type){
+						ScorePacketEntry::TYPE_PLAYER => self::ACTION_CHANGE_PLAYER,
+						ScorePacketEntry::TYPE_ENTITY => self::ACTION_CHANGE_ENTITY,
+						ScorePacketEntry::TYPE_FAKE_PLAYER => self::ACTION_CHANGE_FAKE_PLAYER,
+						default => throw new \InvalidArgumentException("Unknown entry type $entry->type"),
+					};
+				}
+				$out->putUnsignedVarInt($actionOrd);
+				$out->putString(self::ACTION_STRINGS[$actionOrd]);
+				$out->putVarLong($entry->scoreboardId);
+				$out->writeOptional($entry->objectiveName, fn(string $name) => $out->putString($name));
+				if($actionOrd !== self::ACTION_REMOVE){
+					$out->putLInt($entry->score);
+					if($actionOrd === self::ACTION_CHANGE_FAKE_PLAYER){
+						$out->putString($entry->customName ?? throw new \InvalidArgumentException("customName must be set for fake player entries"));
+					}else{
+						$out->putActorUniqueId($entry->actorUniqueId);
+					}
+				}
+			}
+			return;
+		}
 		$out->putByte($this->type);
 		$out->putUnsignedVarInt(count($this->entries));
 		foreach($this->entries as $entry){

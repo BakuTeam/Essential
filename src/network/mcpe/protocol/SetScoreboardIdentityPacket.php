@@ -53,10 +53,14 @@ class SetScoreboardIdentityPacket extends DataPacket implements ClientboundPacke
 
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->type = $in->getByte();
+		$since1_26_40 = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40;
 		for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
 			$entry = new ScoreboardIdentityPacketEntry();
 			$entry->scoreboardId = $in->getVarLong();
-			if($this->type === self::TYPE_REGISTER_IDENTITY){
+			if($since1_26_40){
+				//1.26.40 writes the actor unique id as an optional regardless of the register/clear type
+				$entry->actorUniqueId = $in->readOptional(fn() => $in->getActorUniqueId());
+			}elseif($this->type === self::TYPE_REGISTER_IDENTITY){
 				$entry->actorUniqueId = $in->getActorUniqueId();
 			}
 
@@ -66,10 +70,13 @@ class SetScoreboardIdentityPacket extends DataPacket implements ClientboundPacke
 
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putByte($this->type);
+		$since1_26_40 = $out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40;
 		$out->putUnsignedVarInt(count($this->entries));
 		foreach($this->entries as $entry){
 			$out->putVarLong($entry->scoreboardId);
-			if($this->type === self::TYPE_REGISTER_IDENTITY){
+			if($since1_26_40){
+				$out->writeOptional($this->type === self::TYPE_REGISTER_IDENTITY ? $entry->actorUniqueId : null, fn(int $id) => $out->putActorUniqueId($id));
+			}elseif($this->type === self::TYPE_REGISTER_IDENTITY){
 				$out->putActorUniqueId($entry->actorUniqueId);
 			}
 		}
