@@ -248,7 +248,7 @@ class PacketSerializer extends BinaryStream{
 			$premium,
 			$persona,
 			$capeOnClassic,
-			$isPrimaryUser,
+			$isPrimaryUser ?? true, //isPrimaryUser is only present on the wire since 1.17.30
 			$override,
 		);
 	}
@@ -316,10 +316,17 @@ class PacketSerializer extends BinaryStream{
 			}
 		}
 		$this->putSkinImage($skin->getCapeImage());
-		$this->putString($skin->getGeometryData());
+		$geometryData = $skin->getGeometryData();
+		if($geometryData === "" && $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			//since 1.26.40 the client drops the connection on an empty geometry string; older clients
+			//require the raw empty value or the referenced default geometry fails to resolve (invisible players)
+			$geometryData = "{}";
+		}
+		$this->putString($geometryData);
 
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_17_30){
-			$this->putString($skin->getGeometryDataEngineVersion());
+			//1.26.40 expects the legacy engine version marker; older clients expect the network version string
+			$this->putString($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? "0.0.0" : $skin->getGeometryDataEngineVersion());
 		}
 
 		$this->putString($skin->getAnimationData());

@@ -42,8 +42,6 @@ use const JSON_THROW_ON_ERROR;
 class LegacySkinAdapter implements SkinAdapter{
 	private const DEFAULT_GEOMETRY_NAME = "geometry.humanoid.custom";
 	private const SLIM_GEOMETRY_NAME_SUFFIX = "Slim";
-	private const EMPTY_GEOMETRY_DATA = "{}";
-	private const GEOMETRY_ENGINE_VERSION = "0.0.0";
 
 	public function toSkinData(Skin $skin) : SkinData{
 		$capeData = $skin->getCapeData();
@@ -52,15 +50,16 @@ class LegacySkinAdapter implements SkinAdapter{
 		if($geometryName === ""){
 			$geometryName = self::DEFAULT_GEOMETRY_NAME;
 		}
-		$geometryData = $skin->getGeometryData();
+		//NOTE: the empty-geometry marker ("{}") and geometry engine version are applied per-protocol in
+		//PacketSerializer::putSkin() — older clients render players invisible if they receive the 1.26.40
+		//variants, so the SkinData built here stays protocol-agnostic (raw geometry, default engine version).
 		return new SkinData(
 			$skin->getSkinId(),
 			"", //TODO: playfab ID
 			json_encode(["geometry" => ["default" => $geometryName]], JSON_THROW_ON_ERROR),
 			SkinImage::fromLegacy($skin->getSkinData()), [],
 			$capeImage,
-			$geometryData === "" ? self::EMPTY_GEOMETRY_DATA : $geometryData,
-			self::GEOMETRY_ENGINE_VERSION,
+			$skin->getGeometryData(),
 			armSize: str_ends_with($geometryName, self::SLIM_GEOMETRY_NAME_SUFFIX) ? SkinData::ARM_SIZE_SLIM : SkinData::ARM_SIZE_WIDE
 		);
 	}
