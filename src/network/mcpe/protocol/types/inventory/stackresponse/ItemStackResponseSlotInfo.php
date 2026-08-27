@@ -34,9 +34,9 @@ final class ItemStackResponseSlotInfo{
 		private int $slot,
 		private int $hotbarSlot,
 		private int $count,
-		private int $itemStackId,
+		private ?int $itemStackId,
 		private string $customName,
-		private string $filteredCustomName,
+		private ?string $filteredCustomName,
 		private int $durabilityCorrection
 	){}
 
@@ -46,11 +46,11 @@ final class ItemStackResponseSlotInfo{
 
 	public function getCount() : int{ return $this->count; }
 
-	public function getItemStackId() : int{ return $this->itemStackId; }
+	public function getItemStackId() : ?int{ return $this->itemStackId; }
 
 	public function getCustomName() : string{ return $this->customName; }
 
-	public function getFilteredCustomName() : string{ return $this->filteredCustomName; }
+	public function getFilteredCustomName() : ?string{ return $this->filteredCustomName; }
 
 	public function getDurabilityCorrection() : int{ return $this->durabilityCorrection; }
 
@@ -58,11 +58,17 @@ final class ItemStackResponseSlotInfo{
 		$slot = $in->getByte();
 		$hotbarSlot = $in->getByte();
 		$count = $in->getByte();
-		$itemStackId = $in->readServerItemStackId();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$itemStackId = $in->readDoubleOptional($in->readServerItemStackId(...));
+		}else{
+			$itemStackId = $in->readServerItemStackId();
+		}
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_200){
 			$customName = $in->getString();
 		}
-		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_50){
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$filteredCustomName = $in->readOptional($in->getString(...));
+		}elseif($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_50){
 			$filteredCustomName = $in->getString();
 		}
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_210){
@@ -75,12 +81,18 @@ final class ItemStackResponseSlotInfo{
 		$out->putByte($this->slot);
 		$out->putByte($this->hotbarSlot);
 		$out->putByte($this->count);
-		$out->writeServerItemStackId($this->itemStackId);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->writeDoubleOptional($this->itemStackId, $out->writeServerItemStackId(...));
+		}else{
+			$out->writeServerItemStackId($this->itemStackId ?? 0);
+		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_200){
 			$out->putString($this->customName);
 		}
-		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_50){
-			$out->putString($this->filteredCustomName);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->writeOptional($this->filteredCustomName, $out->putString(...));
+		}elseif($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_50){
+			$out->putString($this->filteredCustomName ?? "");
 		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_210){
 			$out->putVarInt($this->durabilityCorrection);
