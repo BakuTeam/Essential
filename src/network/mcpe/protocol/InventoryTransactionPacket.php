@@ -80,7 +80,13 @@ class InventoryTransactionPacket extends DataPacket implements ClientboundPacket
 			}
 		}
 
-		$transactionType = $is2630 ? $in->readOptional(fn() => $in->getUnsignedVarInt()) : $in->getUnsignedVarInt();
+		if($is2630){
+			$in->readDummyOptional();
+		}
+		$transactionType = $in->getUnsignedVarInt();
+		if($is2630){
+			$in->readDummyOptional();
+		}
 
 		// if($in->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_220){
 		// 	$this->hasItemStackIds = $in->getBool();
@@ -116,7 +122,9 @@ class InventoryTransactionPacket extends DataPacket implements ClientboundPacket
 		}
 
 		if($is2630){
-			$out->writeOptional($this->trData?->getTypeId(), fn(int $typeId) => $out->putUnsignedVarInt($typeId));
+			$out->writeDummyOptional();
+			$out->putUnsignedVarInt($this->trData->getTypeId());
+			$out->writeDummyOptional();
 		}else{
 			$out->putUnsignedVarInt($this->trData->getTypeId());
 		}

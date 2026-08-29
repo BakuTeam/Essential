@@ -39,6 +39,7 @@ use pocketmine\network\mcpe\protocol\types\PlayerBlockAction;
 use pocketmine\network\mcpe\protocol\types\PlayerBlockActionStopBreak;
 use pocketmine\network\mcpe\protocol\types\PlayerBlockActionWithBlockInfo;
 use pocketmine\network\mcpe\protocol\types\PlayMode;
+use function array_keys;
 use function assert;
 use function count;
 
@@ -305,7 +306,7 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		return $this->itemStackRequest;
 	}
 
-	public function getRawMove() : Vector2{ return $this->rawMove; }
+	public function getRawMove() : Vector2{ return $this->rawMoveVector; }
 
 	/**
 	 * @return PlayerBlockAction[]|null
@@ -337,16 +338,17 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		$this->moveVecZ = $in->getLFloat();
 		$this->headYaw = $in->getLFloat();
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
-			$in->readDummyOptional();
 			$this->inputFlags = 0;
-			for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
-				$flag = $in->getVarInt();
-				if($flag < 0 || $flag >= PlayerAuthInputFlags::NUMBER_OF_FLAGS || isset($this->sparseInputFlags[$flag])){
-					throw new PacketDecodeException("Invalid or duplicate player input flag $flag");
-				}
-				$this->sparseInputFlags[$flag] = true;
-				if($flag < 63){
-					$this->inputFlags |= 1 << $flag;
+			if($in->getBool()){
+				for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+					$flag = $in->getVarInt();
+					if($flag < 0 || $flag >= PlayerAuthInputFlags::NUMBER_OF_FLAGS || isset($this->sparseInputFlags[$flag])){
+						throw new PacketDecodeException("Invalid or duplicate player input flag $flag");
+					}
+					$this->sparseInputFlags[$flag] = true;
+					if($flag < 63){
+						$this->inputFlags |= 1 << $flag;
+					}
 				}
 			}
 		}else{
@@ -369,21 +371,27 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		}
 
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
-			$this->itemInteractionData = $in->readDoubleOptional(fn() => ItemInteractionData::read($in));
-			$this->itemStackRequest = $in->readDoubleOptional(fn() => ItemStackRequest::read($in));
-			$this->blockActions = $in->readDoubleOptional(function() use ($in) : array{
-				$result = [];
-				for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
-					$actionType = $in->getVarInt();
-					if(!PlayerBlockActionWithBlockInfo::isValidActionType($actionType) && $actionType !== PlayerAction::STOP_BREAK){
-						throw new PacketDecodeException("Unexpected block action type $actionType");
+			if($in->getBool()){
+				$this->itemInteractionData = $in->readOptional(fn() => ItemInteractionData::read($in));
+			}
+			if($in->getBool()){
+				$this->itemStackRequest = $in->readOptional(fn() => ItemStackRequest::read($in));
+			}
+			if($in->getBool()){
+				$this->blockActions = $in->readOptional(function() use ($in) : array{
+					$result = [];
+					for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+						$actionType = $in->getVarInt();
+						if(!PlayerBlockActionWithBlockInfo::isValidActionType($actionType) && $actionType !== PlayerAction::STOP_BREAK){
+							throw new PacketDecodeException("Unexpected block action type $actionType");
+						}
+						$result[] = PlayerBlockActionWithBlockInfo::read($in, $actionType);
 					}
-					$result[] = PlayerBlockActionWithBlockInfo::read($in, $actionType);
-				}
-				return $result;
-			});
-			$vehicleRotation = $in->readDoubleOptional(fn() => $in->getVector2());
-			$vehicleActorUniqueId = $in->readDoubleOptional(fn() => $in->getActorUniqueId());
+					return $result;
+				});
+			}
+			$vehicleRotation = $in->getBool() ? $in->readOptional(fn() => $in->getVector2()) : null;
+			$vehicleActorUniqueId = $in->getBool() ? $in->readOptional(fn() => $in->getActorUniqueId()) : null;
 			if(($vehicleRotation === null) !== ($vehicleActorUniqueId === null)){
 				throw new PacketDecodeException("Vehicle rotation and actor unique ID must both be present or absent");
 			}
@@ -499,7 +507,7 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 					if($action instanceof PlayerBlockActionWithBlockInfo){
 						$action->write($out);
 					}else{
-						$out->putBlockPosition(new \pocketmine\network\mcpe\protocol\types\BlockPosition(0, 0, 0));
+						$out->putBlockPosition(new types\BlockPosition(0, 0, 0));
 						$out->putVarInt(0);
 					}
 				}

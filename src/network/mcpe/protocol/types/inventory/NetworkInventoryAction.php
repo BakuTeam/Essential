@@ -73,7 +73,7 @@ class NetworkInventoryAction{
 
 	public int $sourceType;
 	public ?int $windowId = null;
-	public ?int $sourceFlags = 0;
+	public ?int $sourceFlags = null;
 	public int $inventorySlot;
 	public ItemStackWrapper $oldItem;
 	public ItemStackWrapper $newItem;
@@ -89,8 +89,15 @@ class NetworkInventoryAction{
 		$this->sourceType = $packet->getUnsignedVarInt();
 
 		if($packet->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
-			$this->windowId = $packet->readOptional(fn() => $packet->readOptional(fn() => Binary::signByte($packet->getByte())));
-			$this->sourceFlags = $packet->readOptional(fn() => $packet->readOptional(fn() => $packet->getUnsignedVarInt()));
+			if($packet->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				$this->windowId = $packet->readOptional(fn() => $packet->readOptional(fn() => Binary::signByte($packet->getByte())));
+				$this->sourceFlags = $packet->readOptional(fn() => $packet->readOptional(fn() => $packet->getUnsignedVarInt()));
+			}else{
+				$packet->readDummyOptional();
+				$this->windowId = $packet->readOptional(fn() => Binary::signByte($packet->getByte()));
+				$packet->readDummyOptional();
+				$this->sourceFlags = $packet->readOptional(fn() => $packet->getUnsignedVarInt());
+			}
 			$this->inventorySlot = $packet->getUnsignedVarInt();
 			$this->oldItem = $packet->getNetworkItemStackDescriptor();
 			$this->newItem = $packet->getNetworkItemStackDescriptor();
@@ -126,11 +133,6 @@ class NetworkInventoryAction{
 	}
 
 	/**
-	 * Reads an inventory action as embedded in PlayerAuthInputPacket's item interaction data.
-	 * Unlike {@see self::read()}, this always uses the legacy (pre-1.26.30) wire format, since
-	 * 1.26.30+ kept the auth-input transaction format unchanged while only changing the standalone
-	 * InventoryTransactionPacket format.
-	 *
 	 * @return $this
 	 *
 	 * @throws BinaryDataException
@@ -138,6 +140,15 @@ class NetworkInventoryAction{
 	 */
 	public function readAuthInput(PacketSerializer $packet) : NetworkInventoryAction{
 		$this->sourceType = $packet->getUnsignedVarInt();
+
+		if($packet->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$this->windowId = $packet->readOptional(fn() => $packet->readOptional(fn() => Binary::signByte($packet->getByte())));
+			$this->sourceFlags = $packet->readOptional(fn() => $packet->readOptional(fn() => $packet->getUnsignedVarInt()));
+			$this->inventorySlot = $packet->getUnsignedVarInt();
+			$this->oldItem = $packet->getNetworkItemStackDescriptor();
+			$this->newItem = $packet->getNetworkItemStackDescriptor();
+			return $this;
+		}
 
 		switch($this->sourceType){
 			case self::SOURCE_CONTAINER:
@@ -169,6 +180,15 @@ class NetworkInventoryAction{
 	public function writeAuthInput(PacketSerializer $packet) : void{
 		$packet->putUnsignedVarInt($this->sourceType);
 
+		if($packet->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$packet->writeOptional($this->windowId, fn(int $windowId) => $packet->writeOptional($windowId, fn(int $v) => $packet->putByte(Binary::unsignByte($v))));
+			$packet->writeOptional($this->sourceFlags, fn(int $sourceFlags) => $packet->writeOptional($sourceFlags, fn(int $v) => $packet->putUnsignedVarInt($v)));
+			$packet->putUnsignedVarInt($this->inventorySlot);
+			$packet->putNetworkItemStackDescriptor($this->oldItem);
+			$packet->putNetworkItemStackDescriptor($this->newItem);
+			return;
+		}
+
 		switch($this->sourceType){
 			case self::SOURCE_CONTAINER:
 				$packet->putVarInt($this->windowId);
@@ -198,8 +218,15 @@ class NetworkInventoryAction{
 		$packet->putUnsignedVarInt($this->sourceType);
 
 		if($packet->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
-			$packet->writeOptional($this->windowId, fn(int $windowId) => $packet->writeOptional($windowId, fn(int $v) => $packet->putByte(Binary::unsignByte($v))));
-			$packet->writeOptional($this->sourceFlags, fn(int $sourceFlags) => $packet->writeOptional($sourceFlags, fn(int $v) => $packet->putUnsignedVarInt($v)));
+			if($packet->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				$packet->writeOptional($this->windowId, fn(int $windowId) => $packet->writeOptional($windowId, fn(int $v) => $packet->putByte(Binary::unsignByte($v))));
+				$packet->writeOptional($this->sourceFlags, fn(int $sourceFlags) => $packet->writeOptional($sourceFlags, fn(int $v) => $packet->putUnsignedVarInt($v)));
+			}else{
+				$packet->writeDummyOptional();
+				$packet->writeOptional($this->windowId, fn(int $v) => $packet->putByte(Binary::unsignByte($v)));
+				$packet->writeDummyOptional();
+				$packet->writeOptional($this->sourceFlags, fn(int $v) => $packet->putUnsignedVarInt($v));
+			}
 			$packet->putUnsignedVarInt($this->inventorySlot);
 			$packet->putNetworkItemStackDescriptor($this->oldItem);
 			$packet->putNetworkItemStackDescriptor($this->newItem);

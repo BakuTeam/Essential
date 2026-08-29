@@ -125,7 +125,9 @@ class AddPlayerPacket extends DataPacket implements ClientboundPacket{
 		$this->yaw = $in->getLFloat();
 		$this->headYaw = $in->getLFloat();
 
-		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$this->item = $in->getNetworkItemStackDescriptor();
+		}elseif($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
 			$this->item = ItemStackWrapper::read($in);
 		}else{
 			$this->item = ItemStackWrapper::legacy($in->getItemStackWithoutStackId());
@@ -179,7 +181,9 @@ class AddPlayerPacket extends DataPacket implements ClientboundPacket{
 		$out->putLFloat($this->yaw);
 		$out->putLFloat($this->headYaw);
 
-		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->putNetworkItemStackDescriptor($this->item);
+		}elseif($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_220){
 			$this->item->write($out);
 		}else{
 			$out->putItemStackWithoutStackId($this->item->getItemStack());

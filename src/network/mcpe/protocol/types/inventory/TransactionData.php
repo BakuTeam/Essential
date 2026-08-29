@@ -79,9 +79,9 @@ abstract class TransactionData{
 	 * Decodes the transaction as embedded in PlayerAuthInputPacket's item interaction data.
 	 *
 	 * Since 1.26.30 this is NOT the same wire format as {@see self::decode()}: the auth-input
-	 * variant carries only the inventory actions (in the legacy format) and none of the use-item
-	 * payload (action type, block position, item in hand, etc.), which now travels exclusively via
-	 * the standalone InventoryTransactionPacket.
+	 * variant carries only the inventory actions and none of the use-item payload (action type,
+	 * block position, item in hand, etc.), which now travels exclusively via the standalone
+	 * InventoryTransactionPacket. The actions use their 1.26.40 descriptor format on that protocol.
 	 *
 	 * @throws BinaryDataException
 	 * @throws PacketDecodeException

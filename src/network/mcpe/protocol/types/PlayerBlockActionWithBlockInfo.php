@@ -37,7 +37,7 @@ final class PlayerBlockActionWithBlockInfo implements PlayerBlockAction{
 		private BlockPosition $blockPosition,
 		private int $face
 	){
-		if(!self::isValidActionType($actionType)){
+		if(!self::isValidActionType($actionType) && $actionType !== PlayerAction::STOP_BREAK){
 			throw new \InvalidArgumentException("Invalid action type for " . self::class);
 		}
 	}

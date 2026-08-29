@@ -57,7 +57,9 @@ final class SubChunkPacketEntryCommon{
 
 			$requestResult = $in->getByte();
 
-			$data = !$cacheEnabled || $requestResult !== SubChunkRequestResult::SUCCESS_ALL_AIR ? $in->getString() : "";
+			$data = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ?
+				($in->getBool() ? $in->getString() : "") :
+				(!$cacheEnabled || $requestResult !== SubChunkRequestResult::SUCCESS_ALL_AIR ? $in->getString() : "");
 		} else {
 			$offset = new SubChunkPositionOffset(0, 0, 0);
 
@@ -67,9 +69,10 @@ final class SubChunkPacketEntryCommon{
 		}
 
 		$heightMapDataType = $in->getByte();
+		$heightMapRawData = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 && $in->getBool() ? SubChunkPacketHeightMapInfo::read($in) : null;
 		$heightMapData = match ($heightMapDataType) {
 			SubChunkPacketHeightMapType::NO_DATA => null,
-			SubChunkPacketHeightMapType::DATA => SubChunkPacketHeightMapInfo::read($in),
+			SubChunkPacketHeightMapType::DATA => $heightMapRawData ?? ($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? throw new PacketDecodeException("Expected heightmap data") : SubChunkPacketHeightMapInfo::read($in)),
 			SubChunkPacketHeightMapType::ALL_TOO_HIGH => SubChunkPacketHeightMapInfo::allTooHigh(),
 			SubChunkPacketHeightMapType::ALL_TOO_LOW => SubChunkPacketHeightMapInfo::allTooLow(),
 			default => throw new PacketDecodeException("Unknown heightmap data type $heightMapDataType")
@@ -77,9 +80,10 @@ final class SubChunkPacketEntryCommon{
 
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_90){
 			$renderHeightMapDataType = $in->getByte();
+			$renderHeightMapRawData = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 && $in->getBool() ? SubChunkPacketHeightMapInfo::read($in) : null;
 			$renderHeightMapData = match ($renderHeightMapDataType) {
 				SubChunkPacketHeightMapType::NO_DATA => null,
-				SubChunkPacketHeightMapType::DATA => SubChunkPacketHeightMapInfo::read($in),
+				SubChunkPacketHeightMapType::DATA => $renderHeightMapRawData ?? ($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? throw new PacketDecodeException("Expected render heightmap data") : SubChunkPacketHeightMapInfo::read($in)),
 				SubChunkPacketHeightMapType::ALL_TOO_HIGH => SubChunkPacketHeightMapInfo::allTooHigh(),
 				SubChunkPacketHeightMapType::ALL_TOO_LOW => SubChunkPacketHeightMapInfo::allTooLow(),
 				SubChunkPacketHeightMapType::ALL_COPIED => $heightMapData,
@@ -102,7 +106,12 @@ final class SubChunkPacketEntryCommon{
 
 			$out->putByte($this->requestResult);
 
-			if(!$cacheEnabled || $this->requestResult !== SubChunkRequestResult::SUCCESS_ALL_AIR){
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				$out->putBool($this->terrainData !== "");
+				if($this->terrainData !== ""){
+					$out->putString($this->terrainData);
+				}
+			}elseif(!$cacheEnabled || $this->requestResult !== SubChunkRequestResult::SUCCESS_ALL_AIR){
 				$out->putString($this->terrainData);
 			}
 		} else {
@@ -112,26 +121,34 @@ final class SubChunkPacketEntryCommon{
 
 		if($this->heightMap === null){
 			$out->putByte(SubChunkPacketHeightMapType::NO_DATA);
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){ $out->putBool(false); }
 		}elseif($this->heightMap->isAllTooLow()){
 			$out->putByte(SubChunkPacketHeightMapType::ALL_TOO_LOW);
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){ $out->putBool(false); }
 		}elseif($this->heightMap->isAllTooHigh()){
 			$out->putByte(SubChunkPacketHeightMapType::ALL_TOO_HIGH);
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){ $out->putBool(false); }
 		}else{
 			$heightMapData = $this->heightMap; //avoid PHPStan purity issue
 			$out->putByte(SubChunkPacketHeightMapType::DATA);
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){ $out->putBool(true); }
 			$heightMapData->write($out);
 		}
 
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_90){
 			if($this->renderHeightMap === null){
 				$out->putByte(SubChunkPacketHeightMapType::ALL_COPIED);
+				if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){ $out->putBool(false); }
 			}elseif($this->renderHeightMap->isAllTooLow()){
 				$out->putByte(SubChunkPacketHeightMapType::ALL_TOO_LOW);
+				if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){ $out->putBool(false); }
 			}elseif($this->renderHeightMap->isAllTooHigh()){
 				$out->putByte(SubChunkPacketHeightMapType::ALL_TOO_HIGH);
+				if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){ $out->putBool(false); }
 			}else{
 				$renderHeightMapData = $this->renderHeightMap; //avoid PHPStan purity issue
 				$out->putByte(SubChunkPacketHeightMapType::DATA);
+				if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){ $out->putBool(true); }
 				$renderHeightMapData->write($out);
 			}
 		}
