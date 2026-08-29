@@ -52,14 +52,11 @@ abstract class TransactionData{
 	final public function decode(PacketSerializer $stream) : void{
 
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
-			$hasValue = $stream->getBool();
-			if($hasValue){
-				$actionCount = $stream->getUnsignedVarInt();
-				for($i = 0; $i < $actionCount; ++$i){
-					$this->actions[] = (new NetworkInventoryAction())->read($stream, false);
-				}
-				$this->decodeData($stream);
+			$actionCount = $stream->getUnsignedVarInt();
+			for($i = 0; $i < $actionCount; ++$i){
+				$this->actions[] = (new NetworkInventoryAction())->read($stream, false);
 			}
+			$this->decodeData($stream);
 			return;
 		}
 
@@ -120,8 +117,6 @@ abstract class TransactionData{
 	final public function encode(PacketSerializer $stream) : void{
 
 		if($stream->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_30){
-			//the dummy optional bool for trData is always present (1) in the standalone transaction format
-			$stream->putBool(true);
 			$stream->putUnsignedVarInt(count($this->actions));
 			foreach($this->actions as $action){
 				$action->write($stream, false);
