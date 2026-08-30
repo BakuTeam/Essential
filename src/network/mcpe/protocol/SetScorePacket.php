@@ -137,7 +137,9 @@ class SetScorePacket extends DataPacket implements ClientboundPacket{
 				$out->putString(self::ACTION_STRINGS[$actionOrd]);
 				$out->putVarLong($entry->scoreboardId);
 				if($actionOrd === self::ACTION_REMOVE){
-					$out->writeOptional($entry->objectiveName, fn(string $name) => $out->putString($name));
+					//1.26.40 rejects an objective name on remove entries. Later protocol revisions restored it.
+					$objectiveName = $out->getProtocolId() === ProtocolInfo::PROTOCOL_1_26_40 ? null : $entry->objectiveName;
+					$out->writeOptional($objectiveName, fn(string $name) => $out->putString($name));
 				}else{
 					$out->putString($entry->objectiveName);
 					$out->putLInt($entry->score);
