@@ -123,6 +123,7 @@ use pocketmine\world\Position;
 use pocketmine\world\World;
 use pocketmine\YmlServerProperties;
 use function array_map;
+use function array_shift;
 use function base64_encode;
 use function bin2hex;
 use function count;
@@ -173,6 +174,11 @@ class NetworkSession{
 	 * @phpstan-var list<string>
 	 */
 	private array $sendBuffer = [];
+	/**
+	 * @var string[]
+	 * @phpstan-var list<string>
+	 */
+	private array $recentClientboundPackets = [];
 	/**
 	 * @var PromiseResolver[]
 	 * @phpstan-var list<PromiseResolver<true>>
@@ -583,7 +589,12 @@ class NetworkSession{
 				$this->sendBufferAckPromises[] = $ackReceiptResolver;
 			}
 			foreach($packets as $evPacket){
-				$this->addToSendBuffer(self::encodePacketTimed(PacketSerializer::encoder($this->getProtocolId()), $evPacket));
+				$buffer = self::encodePacketTimed(PacketSerializer::encoder($this->getProtocolId()), $evPacket);
+				$this->recentClientboundPackets[] = $evPacket->getName() . " (" . strlen($buffer) . " bytes)";
+				if(count($this->recentClientboundPackets) > 32){
+					array_shift($this->recentClientboundPackets);
+				}
+				$this->addToSendBuffer($buffer);
 			}
 			if($immediate){
 				$this->flushGamePacketQueue();
@@ -787,6 +798,9 @@ class NetworkSession{
 			}
 
 			$this->logger->info($this->server->getLanguage()->translate(KnownTranslationFactory::pocketmine_network_session_close($reason)));
+			if(count($this->recentClientboundPackets) > 0){
+				$this->logger->debug("Last clientbound packets: " . implode(", ", $this->recentClientboundPackets));
+			}
 		}
 	}
 
