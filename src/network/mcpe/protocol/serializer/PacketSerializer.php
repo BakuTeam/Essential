@@ -483,6 +483,9 @@ class PacketSerializer extends BinaryStream{
 		}
 
 		$blockRuntimeId = $this->getUnsignedVarInt();
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$blockRuntimeId = Binary::signInt($blockRuntimeId);
+		}
 		$rawExtraData = $this->getString();
 		if($id === 0){
 			return new ItemStackWrapper($stackId, ItemStack::null());
@@ -515,7 +518,8 @@ class PacketSerializer extends BinaryStream{
 			$this->putVarInt($itemStackWrapper->getStackId());
 		}
 
-		$this->putUnsignedVarInt($item->getBlockRuntimeId());
+		$blockRuntimeId = $item->getBlockRuntimeId();
+		$this->putUnsignedVarInt($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? Binary::unsignInt($blockRuntimeId) : $blockRuntimeId);
 		if($item->getId() === 0){
 			$this->putString("");
 			return;
