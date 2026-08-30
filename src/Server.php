@@ -292,6 +292,7 @@ class Server{
 	private QueryInfo $queryInfo;
 
 	private ServerConfigGroup $configGroup;
+	private bool $lowLatencyCombatFeedbackEnabled;
 
 	/** @var Player[] */
 	private array $playerList = [];
@@ -708,6 +709,10 @@ class Server{
 		return $this->configGroup;
 	}
 
+	public function isLowLatencyCombatFeedbackEnabled() : bool{
+		return $this->lowLatencyCombatFeedbackEnabled;
+	}
+
 	/**
 	 * @return Command|PluginOwned|null
 	 * @phpstan-return (Command&PluginOwned)|null
@@ -878,6 +883,8 @@ class Server{
 					ServerProperties::LANGUAGE => "eng"
 				])
 			);
+
+			$this->lowLatencyCombatFeedbackEnabled = $this->configGroup->getPropertyBool(Yml::NETWORK_COMBAT_LOW_LATENCY_FEEDBACK, true);
 
 			$debugLogLevel = $this->configGroup->getPropertyInt(Yml::DEBUG_LEVEL, 1);
 			if($this->logger instanceof MainLogger){

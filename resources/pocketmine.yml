@@ -94,6 +94,8 @@ network:
   compression-level: 7
   async-compression: true
   async-compression-threshold: 10000
+  #Send combat feedback before the normal tick flush. Limited to one early batch per player per tick.
+  combat-low-latency-feedback: true
   upnp-forwarding: false
   max-mtu-size: 850
   enable-encryption: true
