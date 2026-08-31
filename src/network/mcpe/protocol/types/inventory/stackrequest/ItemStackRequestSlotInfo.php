@@ -26,6 +26,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types\inventory\stackrequest;
 
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\types\inventory\FullContainerName;
 
@@ -45,13 +46,17 @@ final class ItemStackRequestSlotInfo{
 	public static function read(PacketSerializer $in) : self{
 		$containerName = FullContainerName::read($in);
 		$slotId = $in->getByte();
-		$stackId = $in->readItemStackNetIdVariant();
+		$stackId = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $in->getLInt() : $in->readItemStackNetIdVariant();
 		return new self($containerName, $slotId, $stackId);
 	}
 
 	public function write(PacketSerializer $out) : void{
 		$this->containerName->write($out);
 		$out->putByte($this->slotId);
-		$out->writeItemStackNetIdVariant($this->stackId);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+			$out->putLInt($this->stackId);
+		}else{
+			$out->writeItemStackNetIdVariant($this->stackId);
+		}
 	}
 }

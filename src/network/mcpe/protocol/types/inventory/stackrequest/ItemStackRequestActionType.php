@@ -52,4 +52,15 @@ final class ItemStackRequestActionType{
 	public const CRAFTING_LOOM = 17;
 	public const CRAFTING_NON_IMPLEMENTED_DEPRECATED_ASK_TY_LAING = 18;
 	public const CRAFTING_RESULTS_DEPRECATED_ASK_TY_LAING = 19; //no idea what this is for
+
+	public static function toModernTypeId(int $legacyTypeId) : int{
+		if($legacyTypeId === self::PLACE_INTO_BUNDLE || $legacyTypeId === self::TAKE_FROM_BUNDLE){
+			throw new \InvalidArgumentException("Bundle actions are not supported by protocol 1.26.40");
+		}
+		return $legacyTypeId >= self::LAB_TABLE_COMBINE ? $legacyTypeId - 2 : $legacyTypeId;
+	}
+
+	public static function fromModernTypeId(int $modernTypeId) : int{
+		return $modernTypeId >= self::PLACE_INTO_BUNDLE ? $modernTypeId + 2 : $modernTypeId;
+	}
 }

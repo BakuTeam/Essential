@@ -93,9 +93,14 @@ final class ItemStackRequest{
 		$actions = [];
 
 		for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
-			$typeId = $in->getByte();
-			if($typeId >= ItemStackRequestActionType::PLACE_INTO_BUNDLE && $in->getProtocolId() < ProtocolInfo::PROTOCOL_1_18_10){
-				$typeId += ItemStackRequestActionType::LAB_TABLE_COMBINE - ItemStackRequestActionType::PLACE_INTO_BUNDLE;
+			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				$typeId = ItemStackRequestActionType::fromModernTypeId($in->getUnsignedVarInt());
+				$in->getByte(); // legacy action type ID, retained by the client for compatibility
+			}else{
+				$typeId = $in->getByte();
+				if($typeId >= ItemStackRequestActionType::PLACE_INTO_BUNDLE && $in->getProtocolId() < ProtocolInfo::PROTOCOL_1_18_10){
+					$typeId += ItemStackRequestActionType::LAB_TABLE_COMBINE - ItemStackRequestActionType::PLACE_INTO_BUNDLE;
+				}
 			}
 			$actions[] = self::readAction($in, $typeId);
 		}
@@ -117,10 +122,15 @@ final class ItemStackRequest{
 		$out->putUnsignedVarInt(count($this->actions));
 		foreach($this->actions as $action){
 			$typeId = $action->getTypeId();
-			if($typeId >= ItemStackRequestActionType::PLACE_INTO_BUNDLE && $out->getProtocolId() < ProtocolInfo::PROTOCOL_1_18_10){
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+				$out->putUnsignedVarInt(ItemStackRequestActionType::toModernTypeId($typeId));
+				$out->putByte($typeId);
+			}elseif($typeId >= ItemStackRequestActionType::PLACE_INTO_BUNDLE && $out->getProtocolId() < ProtocolInfo::PROTOCOL_1_18_10){
 				$typeId -= ItemStackRequestActionType::LAB_TABLE_COMBINE - ItemStackRequestActionType::PLACE_INTO_BUNDLE;
+				$out->putByte($typeId);
+			}else{
+				$out->putByte($typeId);
 			}
-			$out->putByte($typeId);
 			$action->write($out);
 		}
 		$out->putUnsignedVarInt(count($this->filterStrings));
