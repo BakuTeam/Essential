@@ -24,6 +24,12 @@ jobs:
       - name: Validate Composer manifest
         run: composer validate --strict
 
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run protocol smoke test
+        run: php -d memory_limit=512M tests/protocol-support.php
+
       - name: Lint PHP source
         shell: bash
         run: find src build -type f -name '*.php' -print0 | xargs -0 -n1 php -l
