@@ -2,7 +2,7 @@
 
 Essential is a PocketMine-MP-based PHP project. For local development, use the PHP build and extensions supported by the PocketMine-MP ecosystem.
 
-1. Install PHP 8.1 or newer and Composer.
+1. Install PHP 8.3 or newer and Composer.
 2. Install dependencies:
 
    ```sh
