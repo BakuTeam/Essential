@@ -17,7 +17,7 @@
  * (at your option) any later version.
  *
  * @author Essential Team
- * @link https:
+ * @link https://github.com/BakuTeam/Essential
  *
  *
  */
