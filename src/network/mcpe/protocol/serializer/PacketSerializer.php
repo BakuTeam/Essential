@@ -166,49 +166,54 @@ class PacketSerializer extends BinaryStream{
 
 		$capeId = $this->getString();
 		$fullSkinId = $this->getString();
-		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+		$personaPieces = [];
+		$pieceTintColors = [];
+		if($this->getProtocolId() < ProtocolInfo::PROTOCOL_1_14_60){
+			$armSize = SkinData::ARM_SIZE_WIDE;
+			$skinColor = "";
+		}elseif($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
 			$armSize = $this->getByte() === 0 ? SkinData::ARM_SIZE_SLIM : SkinData::ARM_SIZE_WIDE;
 			$skinColor = self::skinColorFromInt($this->getLInt());
 		}else{
 			$armSize = $this->getString();
 			$skinColor = $this->getString();
 		}
-		$personaPieceCount = $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $this->getUnsignedVarInt() : $this->getLInt();
-		$personaPieces = [];
-		for($i = 0; $i < $personaPieceCount; ++$i){
-			$pieceId = $this->getString();
-			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
-				$pieceType = self::personaPieceTypeFromOrdinal($this->getLInt());
-				$packId = $this->getUUID()->toString();
-			}else{
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_14_60){
+			$personaPieceCount = $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $this->getUnsignedVarInt() : $this->getLInt();
+			for($i = 0; $i < $personaPieceCount; ++$i){
+				$pieceId = $this->getString();
+				if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+					$pieceType = self::personaPieceTypeFromOrdinal($this->getLInt());
+					$packId = $this->getUUID()->toString();
+				}else{
+					$pieceType = $this->getString();
+					$packId = $this->getString();
+				}
+				$isDefaultPiece = $this->getBool();
+				$productId = $this->getString();
+				$personaPieces[] = new PersonaSkinPiece($pieceId, $pieceType, $packId, $isDefaultPiece, $productId);
+			}
+			$pieceTintColorCount = $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $this->getUnsignedVarInt() : $this->getLInt();
+			for($i = 0; $i < $pieceTintColorCount; ++$i){
 				$pieceType = $this->getString();
-				$packId = $this->getString();
-			}
-			$isDefaultPiece = $this->getBool();
-			$productId = $this->getString();
-			$personaPieces[] = new PersonaSkinPiece($pieceId, $pieceType, $packId, $isDefaultPiece, $productId);
-		}
-		$pieceTintColorCount = $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40 ? $this->getUnsignedVarInt() : $this->getLInt();
-		$pieceTintColors = [];
-		for($i = 0; $i < $pieceTintColorCount; ++$i){
-			$pieceType = $this->getString();
-			if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
-				//since 1.26.40 the colour count is fixed at 4 and each colour is a network ARGB integer
-				$colors = [];
-				for($j = 0; $j < PersonaPieceTintColor::EXPECTED_COLOR_COUNT; ++$j){
-					$colors[] = self::skinColorFromInt($this->getLInt());
+				if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
+					//since 1.26.40 the colour count is fixed at 4 and each colour is a network ARGB integer
+					$colors = [];
+					for($j = 0; $j < PersonaPieceTintColor::EXPECTED_COLOR_COUNT; ++$j){
+						$colors[] = self::skinColorFromInt($this->getLInt());
+					}
+				}else{
+					$colorCount = $this->getLInt();
+					$colors = [];
+					for($j = 0; $j < $colorCount; ++$j){
+						$colors[] = $this->getString();
+					}
 				}
-			}else{
-				$colorCount = $this->getLInt();
-				$colors = [];
-				for($j = 0; $j < $colorCount; ++$j){
-					$colors[] = $this->getString();
-				}
+				$pieceTintColors[] = new PersonaPieceTintColor(
+					$pieceType,
+					$colors
+				);
 			}
-			$pieceTintColors[] = new PersonaPieceTintColor(
-				$pieceType,
-				$colors
-			);
 		}
 
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_17_30){
@@ -339,6 +344,9 @@ class PacketSerializer extends BinaryStream{
 
 		$this->putString($skin->getCapeId());
 		$this->putString($skin->getFullSkinId());
+		if($this->getProtocolId() < ProtocolInfo::PROTOCOL_1_14_60){
+			return;
+		}
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_40){
 			$this->putByte($skin->getArmSize() === SkinData::ARM_SIZE_SLIM ? 0 : 1);
 			$this->putLInt(self::skinColorToInt($skin->getSkinColor()));

@@ -55,7 +55,7 @@ class PlayerSkinPacket extends DataPacket implements ClientboundPacket, Serverbo
 		$this->skin = $in->getSkin();
 		$this->newSkinName = $in->getString();
 		$this->oldSkinName = $in->getString();
-		if($in->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40){
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_14_60 && $in->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40){
 			$this->skin->setVerified($in->getBool());
 		}
 	}
@@ -65,7 +65,7 @@ class PlayerSkinPacket extends DataPacket implements ClientboundPacket, Serverbo
 		$out->putSkin($this->skin);
 		$out->putString($this->newSkinName);
 		$out->putString($this->oldSkinName);
-		if($out->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40){
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_14_60 && $out->getProtocolId() < ProtocolInfo::PROTOCOL_1_26_40){
 			$out->putBool($this->skin->isVerified());
 		}
 	}

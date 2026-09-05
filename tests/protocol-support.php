@@ -28,19 +28,35 @@ foreach(ProtocolInfo::ACCEPTED_PROTOCOL as $acceptedProtocol){
 	$typeConverter->getItemTypeDictionary()->fromStringId('minecraft:stone');
 }
 
-$oldest = ProtocolInfo::PROTOCOL_1_14_60;
-if(!in_array($oldest, ProtocolInfo::ACCEPTED_PROTOCOL, true)){
-	throw new RuntimeException("Protocol $oldest is not accepted");
-}
-
-$legacyPalette = LegacyBlockPaletteProvider::getPalette($oldest);
-$blockTranslator = TypeConverter::getInstance($oldest)->getBlockTranslator();
-if(count($legacyPalette) !== count($blockTranslator->getBlockStateDictionary()->getStates())){
-	throw new RuntimeException("Protocol $oldest block palette doesn't match the block state dictionary");
-}
-if($blockTranslator->internalIdToNetworkId(VanillaBlocks::STONE()->getStateId()) !== 1){
-	throw new RuntimeException("Protocol $oldest should map minecraft:stone to runtime ID 1");
-}
+$legacyProtocols = [
+	'1.14.60' => ProtocolInfo::PROTOCOL_1_14_60,
+	'1.14.0' => ProtocolInfo::PROTOCOL_1_14_0,
+];
 
 echo "Bedrock 1.26.45 protocol smoke test passed (protocol $protocol, item schema $schemaId).\n";
-echo "Bedrock 1.14.60 protocol smoke test passed (protocol $oldest, " . count($legacyPalette) . " block states).\n";
+
+foreach($legacyProtocols as $legacyVersion => $legacyProtocol){
+	if(!in_array($legacyProtocol, ProtocolInfo::ACCEPTED_PROTOCOL, true)){
+		throw new RuntimeException("Protocol $legacyProtocol is not accepted");
+	}
+
+	if(!LegacyBlockPaletteProvider::isRequired($legacyProtocol)){
+		throw new RuntimeException("Protocol $legacyProtocol should use the legacy block palette");
+	}
+
+	$legacyPalette = LegacyBlockPaletteProvider::getPalette($legacyProtocol);
+	$blockTranslator = TypeConverter::getInstance($legacyProtocol)->getBlockTranslator();
+	if(count($legacyPalette) !== count($blockTranslator->getBlockStateDictionary()->getStates())){
+		throw new RuntimeException("Protocol $legacyProtocol block palette doesn't match the block state dictionary");
+	}
+	if($blockTranslator->internalIdToNetworkId(VanillaBlocks::STONE()->getStateId()) !== 1){
+		throw new RuntimeException("Protocol $legacyProtocol should map minecraft:stone to runtime ID 1");
+	}
+
+	$legacySchemaId = ItemTranslator::getItemSchemaId($legacyProtocol);
+	if($legacySchemaId !== 11){
+		throw new RuntimeException("Protocol $legacyProtocol uses item schema $legacySchemaId, expected 11");
+	}
+
+	echo "Bedrock $legacyVersion protocol smoke test passed (protocol $legacyProtocol, " . count($legacyPalette) . " block states, item schema $legacySchemaId).\n";
+}
