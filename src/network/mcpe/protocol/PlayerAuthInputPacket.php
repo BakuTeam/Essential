@@ -57,20 +57,20 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 	private array $sparseInputFlags = [];
 	private int $inputMode;
 	private int $playMode;
-	private int $interactionMode;
+	private int $interactionMode = 0;
 	private ?Vector3 $vrGazeDirection = null;
 	private Vector2 $interactRotation;
-	private int $tick;
+	private int $tick = 0;
 	private Vector3 $delta;
 	public ?ItemInteractionData $itemInteractionData = null;
 	private ?ItemStackRequest $itemStackRequest = null;
 	/** @var PlayerBlockAction[]|null */
 	private ?array $blockActions = null;
 	private ?int $clientPredictedVehicleActorUniqueId = null;
-	private float $analogMoveVecX;
-	private float $analogMoveVecZ;
-	private float $vehicleVecX;
-	private float $vehicleVecZ;
+	private float $analogMoveVecX = 0.0;
+	private float $analogMoveVecZ = 0.0;
+	private float $vehicleVecX = 0.0;
+	private float $vehicleVecZ = 0.0;
 	private Vector3 $cameraOrientation;
 	private Vector2 $rawMoveVector;
 
@@ -331,6 +331,11 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 	}
 
 	protected function decodePayload(PacketSerializer $in) : void{
+		$this->interactRotation = new Vector2(0, 0);
+		$this->delta = new Vector3(0, 0, 0);
+		$this->cameraOrientation = new Vector3(0, 0, 0);
+		$this->rawMoveVector = new Vector2(0, 0);
+
 		$this->pitch = $in->getLFloat();
 		$this->yaw = $in->getLFloat();
 		$this->position = $in->getVector3();
