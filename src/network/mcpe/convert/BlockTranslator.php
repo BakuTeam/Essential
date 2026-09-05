@@ -263,6 +263,10 @@ final class BlockTranslator{
 			self::CANONICAL_BLOCK_STATES_PATH => '-1.16.0',
 			self::BLOCK_STATE_META_MAP_PATH => '-1.19.10',
 		],
+		ProtocolInfo::PROTOCOL_1_14_60 => [
+			self::CANONICAL_BLOCK_STATES_PATH => '-1.14.60',
+			self::BLOCK_STATE_META_MAP_PATH => '-1.14.60',
+		],
 	];
 
 	/**
@@ -286,6 +290,11 @@ final class BlockTranslator{
 				}
 			}
 		}
+	}
+
+	public static function getCanonicalBlockStatesPath(int $protocolId) : string{
+		return self::PATHS[$protocolId][self::CANONICAL_BLOCK_STATES_PATH] ??
+			throw new AssumptionFailedError("Unknown protocol ID $protocolId");
 	}
 
 	public static function loadFromProtocolId(int $protocolId) : BlockTranslator{

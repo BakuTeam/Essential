@@ -44,6 +44,8 @@ use pocketmine\network\mcpe\cache\ChunkCache;
 use pocketmine\network\mcpe\compression\CompressBatchPromise;
 use pocketmine\network\mcpe\compression\Compressor;
 use pocketmine\network\mcpe\compression\DecompressionException;
+use pocketmine\network\mcpe\compression\LegacyZlibCompressor;
+use pocketmine\network\mcpe\compression\ZlibCompressor;
 use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\encryption\DecryptionException;
 use pocketmine\network\mcpe\encryption\EncryptionContext;
@@ -124,6 +126,7 @@ use pocketmine\world\World;
 use pocketmine\YmlServerProperties;
 use function array_map;
 use function array_shift;
+use function arsort;
 use function base64_encode;
 use function bin2hex;
 use function count;
@@ -149,6 +152,13 @@ class NetworkSession{
 
 	private const INCOMING_GAME_PACKETS_PER_TICK = 2;
 	private const INCOMING_GAME_PACKETS_BUFFER_TICKS = 100;
+
+	/**
+	 * Clients older than 1.16.100 are much chattier than modern ones, in two ways: they send AnimatePacket at frame
+	 * rate (not tick rate) for as long as a block is being broken, and they barely bundle anything, sending most
+	 * packets in a batch of their own. Both limits therefore need a much larger allowance for them.
+	 */
+	private const LEGACY_INCOMING_PACKETS_PER_TICK = 16;
 
 	private PacketRateLimiter $packetBatchLimiter;
 	private PacketRateLimiter $gamePacketLimiter;
@@ -179,6 +189,12 @@ class NetworkSession{
 	 * @phpstan-var list<string>
 	 */
 	private array $recentClientboundPackets = [];
+	/**
+	 * Number of game packets received on this session, by packet name. Used to explain rate limit kicks.
+	 * @var int[]
+	 * @phpstan-var array<string, int>
+	 */
+	private array $inboundPacketCounts = [];
 	/**
 	 * @var PromiseResolver[]
 	 * @phpstan-var list<PromiseResolver<true>>
@@ -368,6 +384,15 @@ class NetworkSession{
 	public function setProtocolId(int $protocolId) : void{
 		$this->protocolId = $protocolId;
 
+		if($protocolId < ProtocolInfo::PROTOCOL_1_16_0 && $this->compressor instanceof ZlibCompressor){
+			$this->compressor = LegacyZlibCompressor::getInstance();
+		}
+
+		if($protocolId < ProtocolInfo::PROTOCOL_1_16_100){
+			$this->packetBatchLimiter = new PacketRateLimiter("Packet Batches", self::LEGACY_INCOMING_PACKETS_PER_TICK, self::INCOMING_PACKET_BATCH_BUFFER_TICKS);
+			$this->gamePacketLimiter = new PacketRateLimiter("Game Packets", self::LEGACY_INCOMING_PACKETS_PER_TICK, self::INCOMING_GAME_PACKETS_BUFFER_TICKS);
+		}
+
 		$this->typeConverter = TypeConverter::getInstance($protocolId);
 		$this->broadcaster = $this->server->getPacketBroadcaster($protocolId);
 		$this->entityEventBroadcaster = $this->server->getEntityEventBroadcaster($this->broadcaster, $this->typeConverter);
@@ -383,6 +408,25 @@ class NetworkSession{
 	 */
 	public function getDisposeHooks() : ObjectSet{
 		return $this->disposeHooks;
+	}
+
+	private function describeInboundPacketCounts() : string{
+		$counts = $this->inboundPacketCounts;
+		arsort($counts);
+		$parts = [];
+		foreach($counts as $name => $count){
+			$parts[] = $name . " x" . $count;
+		}
+		return count($parts) > 0 ? implode(", ", $parts) : "none";
+	}
+
+	private function canDecompress(string $payload) : bool{
+		try{
+			$this->compressor->decompress($payload);
+			return true;
+		}catch(DecompressionException){
+			return false;
+		}
 	}
 
 	/**
@@ -450,12 +494,19 @@ class NetworkSession{
 			try{
 				$stream = new BinaryStream($decompressed);
 				foreach(PacketBatch::decodeRaw($stream) as $buffer){
-					$this->gamePacketLimiter->decrement();
+					try{
+						$this->gamePacketLimiter->decrement();
+					}catch(PacketHandlingException $e){
+						$this->logger->debug("Inbound game packets so far: " . $this->describeInboundPacketCounts());
+						throw $e;
+					}
 					$packet = $this->packetPool->getPacket($buffer);
 					if($packet === null){
 						$this->logger->debug("Unknown packet: " . base64_encode($buffer));
 						throw new PacketHandlingException("Unknown packet received");
 					}
+					$name = $packet->getName();
+					$this->inboundPacketCounts[$name] = ($this->inboundPacketCounts[$name] ?? 0) + 1;
 					try{
 						$this->handleDataPacket($packet, $buffer);
 					}catch(PacketHandlingException $e){
@@ -463,8 +514,8 @@ class NetworkSession{
 						throw PacketHandlingException::wrap($e, "Error processing " . $packet->getName());
 					}
 				}
-			}catch(PacketDecodeException|BinaryDataException $e){
-				if (!$this->enableCompression) {
+			}catch(PacketDecodeException|BinaryDataException|PacketHandlingException $e){
+				if(!$this->enableCompression && $this->canDecompress($payload)){
 					$this->enableCompression = true;
 					$this->setHandler(new LoginPacketHandler(
 						$this->server,
@@ -479,6 +530,9 @@ class NetworkSession{
 					));
 					$this->handleEncoded($payload);
 					return;
+				}
+				if($e instanceof PacketHandlingException){
+					throw $e;
 				}
 				$this->logger->logException($e);
 				throw PacketHandlingException::wrap($e, "Packet batch decode error");
@@ -1311,7 +1365,9 @@ class NetworkSession{
 	}
 
 	public function onCloseAllForms() : void{
-		$this->sendDataPacket(ClientboundCloseFormPacket::create());
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_2){
+			$this->sendDataPacket(ClientboundCloseFormPacket::create());
+		}
 	}
 
 	/**
@@ -1432,7 +1488,9 @@ class NetworkSession{
 	}
 
 	public function onToastNotification(string $title, string $body) : void{
-		$this->sendDataPacket(ToastRequestPacket::create($title, $body));
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_0){
+			$this->sendDataPacket(ToastRequestPacket::create($title, $body));
+		}
 	}
 
 	public function onOpenSignEditor(Vector3 $signPosition, bool $frontSide) : void{
@@ -1442,10 +1500,12 @@ class NetworkSession{
 	}
 
 	public function onItemCooldownChanged(Item $item, int $ticks) : void{
-		$this->sendDataPacket(PlayerStartItemCooldownPacket::create(
-			GlobalItemDataHandlers::getSerializer()->serializeType($item)->getName(),
-			$ticks
-		));
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_18_10){
+			$this->sendDataPacket(PlayerStartItemCooldownPacket::create(
+				GlobalItemDataHandlers::getSerializer()->serializeType($item)->getName(),
+				$ticks
+			));
+		}
 	}
 
 	public function tick() : void{

@@ -35,6 +35,7 @@ use pocketmine\entity\Attribute;
 use pocketmine\entity\InvalidSkinException;
 use pocketmine\event\player\PlayerEditBookEvent;
 use pocketmine\inventory\transaction\action\DropItemAction;
+use pocketmine\inventory\transaction\CraftingTransaction;
 use pocketmine\inventory\transaction\InventoryTransaction;
 use pocketmine\inventory\transaction\TransactionBuilder;
 use pocketmine\inventory\transaction\TransactionCancelledException;
@@ -47,9 +48,12 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\StringTag;
+use pocketmine\network\mcpe\convert\TypeConversionException;
 use pocketmine\network\mcpe\InventoryManager;
+use pocketmine\network\mcpe\LegacyInventoryActionConverter;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\ActorEventPacket;
+use pocketmine\network\mcpe\protocol\ActorFallPacket;
 use pocketmine\network\mcpe\protocol\ActorPickRequestPacket;
 use pocketmine\network\mcpe\protocol\AdventureSettingsPacket;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
@@ -94,6 +98,8 @@ use pocketmine\network\mcpe\protocol\TextPacket;
 use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
+use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
 use pocketmine\network\mcpe\protocol\types\inventory\MismatchTransactionData;
 use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
 use pocketmine\network\mcpe\protocol\types\inventory\NormalTransactionData;
@@ -141,6 +147,8 @@ class InGamePacketHandler extends PacketHandler{
 	protected float $lastRightClickTime = 0.0;
 	protected ?UseItemTransactionData $lastRightClickData = null;
 
+	protected ?CraftingTransaction $craftingTransaction = null;
+
 	protected ?Vector3 $lastPlayerAuthInputPosition = null;
 	protected ?float $lastPlayerAuthInputYaw = null;
 	protected ?float $lastPlayerAuthInputPitch = null;
@@ -162,6 +170,10 @@ class InGamePacketHandler extends PacketHandler{
 		}
 
 		return false;
+	}
+
+	public function handleActorFall(ActorFallPacket $packet) : bool{
+		return true;
 	}
 
 	public function handleMovePlayer(MovePlayerPacket $packet) : bool{
@@ -340,11 +352,20 @@ class InGamePacketHandler extends PacketHandler{
 			throw new PacketHandlingException("Too many slot sync requests in inventory transaction");
 		}
 
+		$legacyCraftingParts = $packet->trData instanceof NormalTransactionData && $this->session->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_100
+			? $this->classifyCraftingParts($packet->trData)
+			: [false, false];
+		$deferredCraftingPart = $legacyCraftingParts[0] && !$legacyCraftingParts[1];
+
 		$this->inventoryManager->setCurrentItemStackRequestId($packet->requestId);
-		$this->inventoryManager->addRawPredictedSlotChanges($packet->trData->getActions());
+		if(!$deferredCraftingPart){
+			$this->inventoryManager->addRawPredictedSlotChanges($packet->trData->getActions());
+		}
 
 		if($packet->trData instanceof NormalTransactionData){
-			$result = $this->handleNormalTransaction($packet->trData, $packet->requestId);
+			$result = $this->session->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_100
+				? $this->handleLegacyNormalTransaction($packet->trData, $packet->requestId, ...$legacyCraftingParts)
+				: $this->handleNormalTransaction($packet->trData, $packet->requestId);
 		}elseif($packet->trData instanceof MismatchTransactionData){
 			$this->session->getLogger()->debug("Mismatch transaction received");
 			$this->inventoryManager->requestSyncAll();
@@ -357,7 +378,9 @@ class InGamePacketHandler extends PacketHandler{
 			$result = $this->handleReleaseItemTransaction($packet->trData);
 		}
 
-		$this->inventoryManager->syncMismatchedPredictedSlotChanges();
+		if(!$deferredCraftingPart){
+			$this->inventoryManager->syncMismatchedPredictedSlotChanges();
+		}
 
 		//requestChangedSlots asks the server to always send out the contents of the specified slots, even if they
 		//haven't changed. Handling these is necessary to ensure the client inventory stays in sync if the server
@@ -400,6 +423,106 @@ class InGamePacketHandler extends PacketHandler{
 		}
 
 		return true;
+	}
+
+	/**
+	 * Clients older than 1.16.100 have no ItemStackRequest, so every inventory interaction arrives as a NORMAL
+	 * transaction rather than just the drop-item case that handleNormalTransaction() expects.
+	 */
+	private function handleLegacyNormalTransaction(NormalTransactionData $data, int $itemStackRequestId, bool $isCraftingPart, bool $isFinalCraftingPart) : bool{
+		$converter = new LegacyInventoryActionConverter($this->inventoryManager, $this->session->getTypeConverter());
+
+		$actions = [];
+		foreach($data->getActions() as $networkInventoryAction){
+			try{
+				$action = $converter->convert($networkInventoryAction);
+			}catch(TypeConversionException $e){
+				$this->session->getLogger()->debug("Invalid item in legacy inventory transaction: " . $e->getMessage());
+				return false;
+			}
+			if($action !== null){
+				$actions[] = $action;
+			}
+		}
+
+		if($isCraftingPart){
+			if($this->craftingTransaction === null){
+				$this->craftingTransaction = new CraftingTransaction($this->player, $this->player->getServer()->getCraftingManager(), $actions);
+			}else{
+				foreach($actions as $action){
+					$this->craftingTransaction->addAction($action);
+				}
+			}
+
+			if(!$isFinalCraftingPart){
+				return true;
+			}
+
+			$transaction = $this->craftingTransaction;
+			$this->craftingTransaction = null;
+			return $this->executeInventoryTransaction($transaction, $itemStackRequestId);
+		}
+
+		if($this->craftingTransaction !== null){
+			$this->session->getLogger()->debug("Got an unexpected normal inventory action with an incomplete crafting transaction, refusing to execute the craft");
+			$this->craftingTransaction = null;
+			$this->inventoryManager->requestSyncAll();
+			return false;
+		}
+
+		if(count($actions) === 0){
+			return true;
+		}
+
+		return $this->executeInventoryTransaction(new InventoryTransaction($this->player, $actions), $itemStackRequestId);
+	}
+
+	/**
+	 * Returns [isCraftingPart, isFinalCraftingPart] for a legacy NORMAL transaction.
+	 *
+	 * @return bool[]
+	 * @phpstan-return array{bool, bool}
+	 */
+	private function classifyCraftingParts(NormalTransactionData $data) : array{
+		$isCraftingPart = false;
+		$isFinalCraftingPart = false;
+		foreach($data->getActions() as $action){
+			if($this->isCraftingPart($action, $isFinalCraftingPart)){
+				$isCraftingPart = true;
+			}
+		}
+
+		return [$isCraftingPart, $isFinalCraftingPart];
+	}
+
+	/**
+	 * Returns whether the given action is part of a craft, and sets $isFinal when it's the piece that completes it.
+	 */
+	private function isCraftingPart(NetworkInventoryAction $action, bool &$isFinal) : bool{
+		if($action->sourceType === NetworkInventoryAction::SOURCE_TODO){
+			if($action->windowId !== NetworkInventoryAction::SOURCE_TYPE_CRAFTING_RESULT && $action->windowId !== NetworkInventoryAction::SOURCE_TYPE_CRAFTING_USE_INGREDIENT){
+				return false;
+			}
+			if($action->windowId === NetworkInventoryAction::SOURCE_TYPE_CRAFTING_RESULT && $this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
+				$isFinal = true;
+			}
+			return true;
+		}
+
+		if(
+			$this->session->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_0 &&
+			$action->sourceType === NetworkInventoryAction::SOURCE_CONTAINER &&
+			$action->windowId === ContainerIds::UI &&
+			$action->inventorySlot === UIInventorySlotOffset::CREATED_ITEM_OUTPUT &&
+			!$action->oldItem->getItemStack()->equals($action->newItem->getItemStack())
+		){
+			if(!$action->oldItem->getItemStack()->equals(ItemStack::null()) && $action->newItem->getItemStack()->equals(ItemStack::null())){
+				$isFinal = true;
+			}
+			return true;
+		}
+
+		return false;
 	}
 
 	private function handleNormalTransaction(NormalTransactionData $data, int $itemStackRequestId) : bool{
@@ -728,6 +851,9 @@ class InGamePacketHandler extends PacketHandler{
 			case PlayerAction::ABORT_BREAK:
 			case PlayerAction::STOP_BREAK:
 				$this->player->stopBreakBlock($pos);
+				break;
+			case PlayerAction::JUMP:
+				$this->player->jump();
 				break;
 			case PlayerAction::START_SLEEPING:
 				//unused

@@ -48,9 +48,9 @@ class InventoryTransactionPacket extends DataPacket implements ClientboundPacket
 	public const TYPE_USE_ITEM_ON_ENTITY = 3;
 	public const TYPE_RELEASE_ITEM = 4;
 
-	public int $requestId;
+	public int $requestId = 0;
 	/** @var InventoryTransactionChangedSlotsHack[] */
-	public array $requestChangedSlots;
+	public array $requestChangedSlots = [];
 	/** @var bool */
 	public $hasItemStackIds = true;
 	public ?TransactionData $trData = null;

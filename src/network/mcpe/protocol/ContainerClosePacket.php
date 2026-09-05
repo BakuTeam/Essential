@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace pocketmine\network\mcpe\protocol;
 
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
+use pocketmine\utils\Binary;
 
 class ContainerClosePacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::CONTAINER_CLOSE_PACKET;
@@ -47,11 +48,13 @@ class ContainerClosePacket extends DataPacket implements ClientboundPacket, Serv
 	}
 
 	protected function decodePayload(PacketSerializer $in) : void{
-		$this->windowId = $in->getByte();
+		$this->windowId = Binary::signByte($in->getByte());
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_0){
 			$this->windowType = $in->getByte();
 		}
-		$this->server = $in->getBool();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_100){
+			$this->server = $in->getBool();
+		}
 	}
 
 	protected function encodePayload(PacketSerializer $out) : void{
@@ -59,7 +62,9 @@ class ContainerClosePacket extends DataPacket implements ClientboundPacket, Serv
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_0){
 			$out->putByte($this->windowType);
 		}
-		$out->putBool($this->server);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_100){
+			$out->putBool($this->server);
+		}
 	}
 
 	public function handle(PacketHandlerInterface $handler) : bool{

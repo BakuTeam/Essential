@@ -37,7 +37,6 @@ use pocketmine\nbt\tag\ListTag;
 use pocketmine\player\Player;
 use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\Utils;
-use function lcg_value;
 use function mt_rand;
 
 class FireworkRocket extends Item{
@@ -101,9 +100,9 @@ class FireworkRocket extends Item{
 		if($player->isGliding() && $player->getArmorInventory()->getChestplate()->getTypeId() === ItemTypeIds::ELYTRA){
 			$randomDuration = (($this->flightDurationMultiplier + 1) * 10) + mt_rand(0, 12);
 
-			$entity = new FireworkEntity(Location::fromObject($player->getPosition()->add(0.5, 0, 0.5), $player->getWorld(), lcg_value() * 360, 90), $randomDuration, $this->explosions);
+			$entity = new FireworkEntity(Location::fromObject($player->getPosition()->add(0.5, 0, 0.5), $player->getWorld(), Utils::getRandomFloat() * 360, 90), $randomDuration, $this->explosions);
 			$entity->setOwningEntity($player);
-			$entity->setMotion(new Vector3(lcg_value() * 0.001, 0.05, lcg_value() * 0.001));
+			$entity->setMotion(new Vector3(Utils::getRandomFloat() * 0.001, 0.05, Utils::getRandomFloat() * 0.001));
 			$entity->spawnToAll();
 
 			$this->pop();
@@ -130,9 +129,9 @@ class FireworkRocket extends Item{
 
 		$randomDuration = (($this->flightDurationMultiplier + 1) * 10) + mt_rand(0, 12);
 
-		$entity = new FireworkEntity(Location::fromObject($position, $player->getWorld(), lcg_value() * 360, 90), $randomDuration, $this->explosions);
+		$entity = new FireworkEntity(Location::fromObject($position, $player->getWorld(), Utils::getRandomFloat() * 360, 90), $randomDuration, $this->explosions);
 		$entity->setOwningEntity($player);
-		$entity->setMotion(new Vector3(lcg_value() * 0.001, 0.05, lcg_value() * 0.001));
+		$entity->setMotion(new Vector3(Utils::getRandomFloat() * 0.001, 0.05, Utils::getRandomFloat() * 0.001));
 		$entity->spawnToAll();
 
 		$this->pop();

@@ -907,7 +907,7 @@ class Server{
 
 			$this->memoryManager = new MemoryManager($this);
 
-			$this->logger->info("Starting Server for Minecraft Bedrock Edition v1.16.100 - " . ProtocolInfo::MINECRAFT_VERSION_NETWORK);
+			$this->logger->info("Starting Server for Minecraft Bedrock Edition v1.14.60 - " . ProtocolInfo::MINECRAFT_VERSION_NETWORK);
 
 			if(($poolSize = $this->configGroup->getPropertyString(Yml::SETTINGS_ASYNC_WORKERS, "auto")) === "auto"){
 				$poolSize = 2;

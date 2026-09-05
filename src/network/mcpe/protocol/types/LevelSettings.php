@@ -80,7 +80,7 @@ final class LevelSettings{
 	public bool $disablePersona = false;
 	public bool $disableCustomSkins = false;
 	public bool $muteEmoteAnnouncements = false;
-	public string $vanillaVersion = ProtocolInfo::MINECRAFT_VERSION_NETWORK;
+	public ?string $vanillaVersion = null;
 	public int $limitedWorldWidth = 0;
 	public int $limitedWorldLength = 0;
 	public bool $isNewNether = true;
@@ -137,7 +137,9 @@ final class LevelSettings{
 		$this->time = $in->getVarInt();
 		$this->eduEditionOffer = $in->getVarInt();
 		$this->hasEduFeaturesEnabled = $in->getBool();
-		$this->eduProductUUID = $in->getString();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
+			$this->eduProductUUID = $in->getString();
+		}
 		$this->rainLevel = $in->getLFloat();
 		$this->lightningLevel = $in->getLFloat();
 		$this->hasConfirmedPlatformLockedContent = $in->getBool();
@@ -172,15 +174,17 @@ final class LevelSettings{
 			}
 		}
 		$this->vanillaVersion = $in->getString();
-		$this->limitedWorldWidth = $in->getLInt();
-		$this->limitedWorldLength = $in->getLInt();
-		$this->isNewNether = $in->getBool();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
+			$this->limitedWorldWidth = $in->getLInt();
+			$this->limitedWorldLength = $in->getLInt();
+			$this->isNewNether = $in->getBool();
 
-		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_17_30){
-			$this->eduSharedUriResource = EducationUriResource::read($in);
+			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_17_30){
+				$this->eduSharedUriResource = EducationUriResource::read($in);
+			}
+
+			$this->experimentalGameplayOverride = $in->readOptional($in->getBool(...));
 		}
-
-		$this->experimentalGameplayOverride = $in->readOptional($in->getBool(...));
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_20){
 			$this->chatRestrictionLevel = $in->getByte();
 			$this->disablePlayerInteractions = $in->getBool();
@@ -226,7 +230,9 @@ final class LevelSettings{
 		$out->putVarInt($this->time);
 		$out->putVarInt($this->eduEditionOffer);
 		$out->putBool($this->hasEduFeaturesEnabled);
-		$out->putString($this->eduProductUUID);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
+			$out->putString($this->eduProductUUID);
+		}
 		$out->putLFloat($this->rainLevel);
 		$out->putLFloat($this->lightningLevel);
 		$out->putBool($this->hasConfirmedPlatformLockedContent);
@@ -260,15 +266,17 @@ final class LevelSettings{
 				$out->putBool($this->muteEmoteAnnouncements);
 			}
 		}
-		$out->putString($this->vanillaVersion);
-		$out->putLInt($this->limitedWorldWidth);
-		$out->putLInt($this->limitedWorldLength);
-		$out->putBool($this->isNewNether);
+		$out->putString($this->vanillaVersion ?? ProtocolInfo::getMinecraftVersionNetwork($out->getProtocolId()));
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
+			$out->putLInt($this->limitedWorldWidth);
+			$out->putLInt($this->limitedWorldLength);
+			$out->putBool($this->isNewNether);
 
-		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_17_30){
-			($this->eduSharedUriResource ?? new EducationUriResource("", ""))->write($out);
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_17_30){
+				($this->eduSharedUriResource ?? new EducationUriResource("", ""))->write($out);
+			}
+			$out->writeOptional($this->experimentalGameplayOverride, $out->putBool(...));
 		}
-		$out->writeOptional($this->experimentalGameplayOverride, $out->putBool(...));
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_20){
 			$out->putByte($this->chatRestrictionLevel);
 			$out->putBool($this->disablePlayerInteractions);

@@ -26,6 +26,12 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
+use function is_int;
+use function str_replace;
+use function str_starts_with;
+use function strlen;
+use function substr;
+
 /**
  * Version numbers and packet IDs for the current Minecraft PE protocol
  */
@@ -100,9 +106,11 @@ final class ProtocolInfo{
 	public const PROTOCOL_1_16_100 = 419;
 	public const PROTOCOL_1_16_20 = 408;
 	public const PROTOCOL_1_16_0 = 407;
+	public const PROTOCOL_1_14_60 = 390;
 
 	public const CURRENT_PROTOCOL = self::PROTOCOL_1_26_45;
 	public const ACCEPTED_PROTOCOL = [
+		self::PROTOCOL_1_14_60,
 		self::PROTOCOL_1_16_20,
 		self::PROTOCOL_1_16_100,
 		self::PROTOCOL_1_16_200,
@@ -162,6 +170,25 @@ final class ProtocolInfo{
 	public const MINECRAFT_VERSION = 'v26.45';
 	/** Version sent on the network for client side compatibility checks. This may differ from the display version. */
 	public const MINECRAFT_VERSION_NETWORK = '1.26.45';
+
+	/**
+	 * @var string[]
+	 * @phpstan-var array<int, string>
+	 */
+	private static array $networkVersions;
+
+	public static function getMinecraftVersionNetwork(int $protocolId) : string{
+		if(!isset(self::$networkVersions)){
+			self::$networkVersions = [];
+			foreach((new \ReflectionClass(self::class))->getConstants() as $name => $value){
+				if(is_int($value) && str_starts_with($name, "PROTOCOL_") && !isset(self::$networkVersions[$value])){
+					self::$networkVersions[$value] = str_replace("_", ".", substr($name, strlen("PROTOCOL_")));
+				}
+			}
+		}
+
+		return self::$networkVersions[$protocolId] ?? self::MINECRAFT_VERSION_NETWORK;
+	}
 
 	public const LOGIN_PACKET = 0x01;
 	public const PLAY_STATUS_PACKET = 0x02;

@@ -189,11 +189,7 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 		$this->enchantmentSeed = $in->getVarInt();
 
 		$this->blockPalette = [];
-		for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
-			$blockName = $in->getString();
-			$state = $in->getNbtCompoundRoot();
-			$this->blockPalette[] = new BlockPaletteEntry($blockName, new CacheableNbt($state));
-		}
+		$this->getEncodedBlockPalette($in);
 
 		if($in->getProtocolId() <= ProtocolInfo::PROTOCOL_1_21_50){
 			$this->itemTable = [];
@@ -209,7 +205,9 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 		}
 
 		$this->multiplayerCorrelationId = $in->getString();
-		$this->enableNewInventorySystem = $in->getBool();
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
+			$this->enableNewInventorySystem = $in->getBool();
+		}
 
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_17_0){
 			$this->serverSoftwareVersion = $in->getString();
@@ -286,7 +284,9 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 		}
 
 		$out->putString($this->multiplayerCorrelationId);
-		$out->putBool($this->enableNewInventorySystem);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
+			$out->putBool($this->enableNewInventorySystem);
+		}
 		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_17_0){
 			$out->putString($this->serverSoftwareVersion);
 		}
@@ -332,8 +332,7 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 					throw new PacketDecodeException("Expected TAG_List NBT root");
 				}
 
-				foreach($blockTable->getValue() as $tag){
-					$state = $tag->getValue();
+				foreach($blockTable->getValue() as $state){
 					if(!($state instanceof CompoundTag)){
 						throw new PacketDecodeException("Expected TAG_Compound NBT state");
 					}

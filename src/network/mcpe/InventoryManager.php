@@ -258,8 +258,7 @@ class InventoryManager{
 			}
 
 			//legacy transactions should not modify or predict anything other than these inventories, since these are
-			//the only ones accessible when not in-game (ItemStackRequest is used for everything else)
-			if(match($action->windowId){
+			if($this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_100 && match($action->windowId){
 				ContainerIds::INVENTORY, ContainerIds::OFFHAND, ContainerIds::ARMOR => false,
 				default => true
 			}){
@@ -414,6 +413,9 @@ class InventoryManager{
 	}
 
 	public function onClientRemoveWindow(int $id) : void{
+		if($id === ContainerIds::NONE){
+			$id = $this->lastInventoryNetworkId;
+		}
 		if($id === $this->lastInventoryNetworkId){
 			if(isset($this->networkIdToInventoryMap[$id]) && $id !== $this->pendingCloseWindowId){
 				$this->remove($id);
@@ -712,7 +714,12 @@ class InventoryManager{
 	}
 
 	public function syncCreative() : void{
-		$this->session->sendDataPacket(CreativeInventoryCache::getInstance($this->session->getProtocolId())->buildPacket($this->player->getCreativeInventory(), $this->session));
+		$protocolId = $this->session->getProtocolId();
+		$cache = CreativeInventoryCache::getInstance($protocolId);
+		$this->session->sendDataPacket($protocolId >= ProtocolInfo::PROTOCOL_1_16_0
+			? $cache->buildPacket($this->player->getCreativeInventory(), $this->session)
+			: $cache->buildLegacyPacket($this->player->getCreativeInventory())
+		);
 	}
 
 	/**
@@ -720,6 +727,10 @@ class InventoryManager{
 	 * @phpstan-param list<EnchantingOption> $options
 	 */
 	public function syncEnchantingTableOptions(array $options) : void{
+		if($this->session->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_0){
+			return;
+		}
+
 		$protocolOptions = [];
 
 		foreach($options as $index => $option){

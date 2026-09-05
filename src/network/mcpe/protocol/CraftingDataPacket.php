@@ -129,13 +129,14 @@ class CraftingDataPacket extends DataPacket implements ClientboundPacket{
 			};
 			$previousType = $recipeType;
 		}
+		$hasPotionRecipeMeta = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0;
 		for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
 			$inputId = $in->getVarInt();
-			$inputMeta = $in->getVarInt();
+			$inputMeta = $hasPotionRecipeMeta ? $in->getVarInt() : 0;
 			$ingredientId = $in->getVarInt();
-			$ingredientMeta = $in->getVarInt();
+			$ingredientMeta = $hasPotionRecipeMeta ? $in->getVarInt() : 0;
 			$outputId = $in->getVarInt();
-			$outputMeta = $in->getVarInt();
+			$outputMeta = $hasPotionRecipeMeta ? $in->getVarInt() : 0;
 			$this->potionTypeRecipes[] = new PotionTypeRecipe($inputId, $inputMeta, $ingredientId, $ingredientMeta, $outputId, $outputMeta);
 		}
 		for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
@@ -214,14 +215,21 @@ class CraftingDataPacket extends DataPacket implements ClientboundPacket{
 			$out->putVarInt($d->getTypeId());
 			$d->encode($out);
 		}
+		$hasPotionRecipeMeta = $out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0;
 		$out->putUnsignedVarInt(count($this->potionTypeRecipes));
 		foreach($this->potionTypeRecipes as $recipe){
 			$out->putVarInt($recipe->getInputItemId());
-			$out->putVarInt($recipe->getInputItemMeta());
+			if($hasPotionRecipeMeta){
+				$out->putVarInt($recipe->getInputItemMeta());
+			}
 			$out->putVarInt($recipe->getIngredientItemId());
-			$out->putVarInt($recipe->getIngredientItemMeta());
+			if($hasPotionRecipeMeta){
+				$out->putVarInt($recipe->getIngredientItemMeta());
+			}
 			$out->putVarInt($recipe->getOutputItemId());
-			$out->putVarInt($recipe->getOutputItemMeta());
+			if($hasPotionRecipeMeta){
+				$out->putVarInt($recipe->getOutputItemMeta());
+			}
 		}
 		$out->putUnsignedVarInt(count($this->potionContainerRecipes));
 		foreach($this->potionContainerRecipes as $recipe){

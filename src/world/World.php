@@ -80,6 +80,7 @@ use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\NetworkBroadcastUtils;
 use pocketmine\network\mcpe\protocol\BlockActorDataPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\UpdateSubChunkBlocksPacketEntry;
 use pocketmine\network\mcpe\protocol\UpdateBlockPacket;
@@ -1257,10 +1258,17 @@ class World implements ChunkManager{
 	 * @param Vector3[] $blocks
 	 * @phpstan-param list<Vector3> $blocks
 	 *
-	 * @return UpdateSubChunkBlocksPacket[]
+	 * @return ClientboundPacket[]
 	 * @phpstan-return list<ClientboundPacket>
+	 *
+	 * UpdateSubChunkBlocksPacket only exists from 1.17.30 onwards; older clients silently drop it, leaving the
+	 * blocks they already have on screen, so they get individual block updates instead.
 	 */
 	public function createUpdateSubChunkBlocksPackets(TypeConverter $typeConverter, array $blocks) : array {
+		if($typeConverter->getProtocolId() < ProtocolInfo::PROTOCOL_1_17_30){
+			return $this->createBlockUpdatePackets($typeConverter, $blocks);
+		}
+
 		$blockTranslator = $typeConverter->getBlockTranslator();
 		$entries = [];
 		foreach($blocks as $block) {

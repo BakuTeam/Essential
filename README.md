@@ -13,7 +13,7 @@
 
 Essential is maintained by **BakuTeam**. This repository is an official GitHub fork of [NetherGamesMC/PocketMine-MP](https://github.com/NetherGamesMC/PocketMine-MP), which in turn is a fork of [pmmp/PocketMine-MP](https://github.com/pmmp/PocketMine-MP).
 
-Essential keeps the PocketMine-MP plugin API while extending protocol support for Minecraft: Bedrock Edition. Supported versions currently range from 1.16 through 1.26.45.
+Essential keeps the PocketMine-MP plugin API while extending protocol support for Minecraft: Bedrock Edition. Supported versions currently range from 1.14.60 through 1.26.45.
 
 The `upstream` Git remote points to NetherGamesMC/PocketMine-MP. Essential-specific changes remain in this repository and in its preserved commit, tag, and release history.
 
@@ -22,7 +22,7 @@ The `upstream` Git remote points to NetherGamesMC/PocketMine-MP. Essential-speci
 - Powerful plugin API compatible with the PocketMine-MP ecosystem
 - Multi-world support
 - Server software written in PHP
-- Bedrock protocol support up to 1.26.45
+- Bedrock protocol support from 1.14.60 up to 1.26.45
 
 ## Getting started
 

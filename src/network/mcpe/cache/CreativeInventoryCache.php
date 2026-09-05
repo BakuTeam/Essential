@@ -32,10 +32,15 @@ use pocketmine\lang\Translatable;
 use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\CreativeContentPacket;
+use pocketmine\network\mcpe\protocol\InventoryContentPacket;
+use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\CreativeGroupEntry;
 use pocketmine\network\mcpe\protocol\types\inventory\CreativeItemEntry;
+use pocketmine\network\mcpe\protocol\types\inventory\FullContainerName;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 use pocketmine\utils\ProtocolSingletonTrait;
+use function array_map;
 use function is_string;
 use function spl_object_id;
 use const PHP_INT_MIN;
@@ -160,5 +165,18 @@ final class CreativeInventoryCache{
 		}
 
 		return CreativeContentPacket::create($groupEntries, $cachedEntry->items);
+	}
+
+	public function buildLegacyPacket(CreativeInventory $inventory) : InventoryContentPacket{
+		return InventoryContentPacket::create(
+			ContainerIds::CREATIVE,
+			array_map(
+				fn(CreativeItemEntry $entry) => new ItemStackWrapper(0, $entry->getItem()),
+				$this->getCacheEntry($inventory)->items
+			),
+			new FullContainerName(0),
+			0,
+			new ItemStackWrapper(0, ItemStack::null())
+		);
 	}
 }

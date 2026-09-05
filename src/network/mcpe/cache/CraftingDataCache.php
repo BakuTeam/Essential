@@ -108,6 +108,9 @@ final class CraftingDataCache{
 					ShapelessRecipeType::CARTOGRAPHY => CraftingRecipeBlockName::CARTOGRAPHY_TABLE,
 					ShapelessRecipeType::SMITHING => CraftingRecipeBlockName::SMITHING_TABLE,
 				};
+				if($typeTag === CraftingRecipeBlockName::SMITHING_TABLE && $this->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_0){
+					continue;
+				}
 				foreach($itemTagDowngrader->downgradeShapelessRecipe($recipe) as $r){
 					try{
 						$recipesWithTypeIds[] = new ProtocolShapelessRecipe(
@@ -163,6 +166,9 @@ final class CraftingDataCache{
 				FurnaceType::CAMPFIRE => FurnaceRecipeBlockName::CAMPFIRE,
 				FurnaceType::SOUL_CAMPFIRE => FurnaceRecipeBlockName::SOUL_CAMPFIRE
 			};
+			if($typeTag === FurnaceRecipeBlockName::SOUL_CAMPFIRE && $this->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_0){
+				continue;
+			}
 			foreach($manager->getFurnaceRecipeManager($furnaceType)->getAll() as $recipe){
 				try{
 					if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_20){

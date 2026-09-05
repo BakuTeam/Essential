@@ -1055,7 +1055,7 @@ class PacketSerializer extends BinaryStream{
 		$toActorUniqueId = $this->getActorUniqueId();
 		$type = $this->getByte();
 		$immediate = $this->getBool();
-		$causedByRider = $this->getBool();
+		$causedByRider = $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0 && $this->getBool();
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20){
 			$vehicleAngularVelocity = $this->getLFloat();
 		}
@@ -1067,7 +1067,9 @@ class PacketSerializer extends BinaryStream{
 		$this->putActorUniqueId($link->toActorUniqueId);
 		$this->putByte($link->type);
 		$this->putBool($link->immediate);
-		$this->putBool($link->causedByRider);
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
+			$this->putBool($link->causedByRider);
+		}
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_20){
 			$this->putLFloat($link->vehicleAngularVelocity);
 		}
@@ -1212,11 +1214,13 @@ class PacketSerializer extends BinaryStream{
 	}
 
 	public function readRecipeNetId() : int{
-		return $this->getUnsignedVarInt();
+		return $this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0 ? $this->getUnsignedVarInt() : 0;
 	}
 
 	public function writeRecipeNetId(int $id) : void{
-		$this->putUnsignedVarInt($id);
+		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
+			$this->putUnsignedVarInt($id);
+		}
 	}
 
 	public function readCreativeItemNetId() : int{

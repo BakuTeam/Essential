@@ -28,6 +28,7 @@ namespace pocketmine\network\mcpe\protocol;
 
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\utils\Limits;
 
 class SetSpawnPositionPacket extends DataPacket implements ClientboundPacket{
@@ -45,6 +46,7 @@ class SetSpawnPositionPacket extends DataPacket implements ClientboundPacket{
 	 * would be the position of the bed block itself).
 	 */
 	public BlockPosition $causingBlockPosition;
+	public bool $spawnForced = true;
 
 	/**
 	 * @generate-create-func
@@ -69,6 +71,12 @@ class SetSpawnPositionPacket extends DataPacket implements ClientboundPacket{
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->spawnType = $in->getVarInt();
 		$this->spawnPosition = $in->getBlockPosition($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_10);
+		if($in->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_0){
+			$this->spawnForced = $in->getBool();
+			$this->dimension = DimensionIds::OVERWORLD;
+			$this->causingBlockPosition = $this->spawnPosition;
+			return;
+		}
 		$this->dimension = $in->getVarInt();
 		$this->causingBlockPosition = $in->getBlockPosition($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_10);
 	}
@@ -76,6 +84,10 @@ class SetSpawnPositionPacket extends DataPacket implements ClientboundPacket{
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putVarInt($this->spawnType);
 		$out->putBlockPosition($this->spawnPosition, $out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_10);
+		if($out->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_0){
+			$out->putBool($this->spawnForced);
+			return;
+		}
 		$out->putVarInt($this->dimension);
 		$out->putBlockPosition($this->causingBlockPosition, $out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_26_10);
 	}

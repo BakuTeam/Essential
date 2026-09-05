@@ -32,6 +32,7 @@ use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\DeathInfoPacket;
 use pocketmine\network\mcpe\protocol\PlayerActionPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\RespawnPacket;
 use pocketmine\network\mcpe\protocol\types\PlayerAction;
 use pocketmine\player\Player;
@@ -63,7 +64,9 @@ class DeathPacketHandler extends PacketHandler{
 		}else{
 			$message = $this->deathMessage;
 		}
-		$this->session->sendDataPacket(DeathInfoPacket::create($message, $parameters));
+		if($this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_19_10){
+			$this->session->sendDataPacket(DeathInfoPacket::create($message, $parameters));
+		}
 	}
 
 	public function handlePlayerAction(PlayerActionPacket $packet) : bool{

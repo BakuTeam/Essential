@@ -33,7 +33,7 @@ class ActorPickRequestPacket extends DataPacket implements ServerboundPacket{
 
 	public int $actorUniqueId;
 	public int $hotbarSlot;
-	public bool $addUserData;
+	public bool $addUserData = false;
 
 	/**
 	 * @generate-create-func

@@ -28,6 +28,7 @@ namespace pocketmine\network\mcpe\convert;
 
 use InvalidArgumentException;
 use pocketmine\data\bedrock\block\BlockStateData;
+use pocketmine\data\bedrock\block\BlockStateDeserializeException;
 use pocketmine\data\bedrock\block\BlockTypeNames;
 use pocketmine\data\bedrock\item\BlockItemIdMap;
 use pocketmine\data\bedrock\item\downgrade\ItemIdMetaDowngrader;
@@ -41,6 +42,7 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\ItemTypeDictionary;
 use pocketmine\utils\AssumptionFailedError;
+use pocketmine\world\format\io\GlobalBlockStateHandlers;
 use pocketmine\world\format\io\GlobalItemDataHandlers;
 
 /**
@@ -56,6 +58,7 @@ final class ItemTranslator{
 		private ItemDeserializer $itemDeserializer,
 		private BlockItemIdMap $blockItemIdMap,
 		private ItemIdMetaDowngrader $itemDataDowngrader,
+		private int $protocolId = ProtocolInfo::CURRENT_PROTOCOL,
 	){}
 
 	/**
@@ -144,16 +147,31 @@ final class ItemTranslator{
 		}
 
 		$blockStateData = null;
-		if($this->blockItemIdMap->lookupBlockId($stringId) !== null){
-			$blockStateData = $this->blockStateDictionary->generateCurrentDataFromStateId($networkBlockRuntimeId);
-			if($blockStateData === null){
-				throw new TypeConversionException("Blockstate runtimeID $networkBlockRuntimeId does not correspond to any known blockstate");
-			}
-		}elseif($networkBlockRuntimeId !== self::NO_BLOCK_RUNTIME_ID){
-			throw new TypeConversionException("Item $stringId is not a blockitem, but runtime ID $networkBlockRuntimeId was provided");
-		}
+		if($this->protocolId < ProtocolInfo::PROTOCOL_1_16_220){
+			$legacyId = $stringId;
+			$legacyMeta = $networkMeta;
+			[$stringId, $networkMeta] = GlobalItemDataHandlers::getUpgrader()->getIdMetaUpgrader()->upgrade($stringId, $networkMeta);
 
-		[$stringId, $networkMeta] = GlobalItemDataHandlers::getUpgrader()->getIdMetaUpgrader()->upgrade($stringId, $networkMeta);
+			$blockId = $this->blockItemIdMap->lookupBlockId($stringId);
+			if($blockId !== null){
+				try{
+					$blockStateData = GlobalBlockStateHandlers::getUpgrader()->getBlockIdMetaUpgrader()->fromStringIdMeta($legacyId, $legacyMeta);
+				}catch(BlockStateDeserializeException){
+					$blockStateData = BlockStateData::current($blockId, []);
+				}
+			}
+		}else{
+			if($this->blockItemIdMap->lookupBlockId($stringId) !== null){
+				$blockStateData = $this->blockStateDictionary->generateCurrentDataFromStateId($networkBlockRuntimeId);
+				if($blockStateData === null){
+					throw new TypeConversionException("Blockstate runtimeID $networkBlockRuntimeId does not correspond to any known blockstate");
+				}
+			}elseif($networkBlockRuntimeId !== self::NO_BLOCK_RUNTIME_ID){
+				throw new TypeConversionException("Item $stringId is not a blockitem, but runtime ID $networkBlockRuntimeId was provided");
+			}
+
+			[$stringId, $networkMeta] = GlobalItemDataHandlers::getUpgrader()->getIdMetaUpgrader()->upgrade($stringId, $networkMeta);
+		}
 
 		try{
 			return $this->itemDeserializer->deserializeType(new SavedItemData($stringId, $networkMeta, $blockStateData));
@@ -236,9 +254,12 @@ final class ItemTranslator{
 			ProtocolInfo::PROTOCOL_1_16_210 => 41,
 
 			ProtocolInfo::PROTOCOL_1_16_200 => 31,
-			ProtocolInfo::PROTOCOL_1_16_100,
+
+			ProtocolInfo::PROTOCOL_1_16_100 => 21,
+
 			ProtocolInfo::PROTOCOL_1_16_20,
-			ProtocolInfo::PROTOCOL_1_16_0 => 21,
+			ProtocolInfo::PROTOCOL_1_16_0,
+			ProtocolInfo::PROTOCOL_1_14_60 => 11,
 
 			default => throw new AssumptionFailedError("Unknown protocol ID $protocolId"),
 		};
