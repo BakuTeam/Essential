@@ -393,6 +393,11 @@ class LoginPacketHandler extends PacketHandler{
 		}catch(JwtException $e){
 			throw PacketHandlingException::wrap($e);
 		}
+		$clientDataClaims["ArmSize"] ??= "wide";
+		$clientDataClaims["SkinColor"] ??= "";
+		$clientDataClaims["PersonaPieces"] ??= [];
+		$clientDataClaims["PersonaSkin"] ??= false;
+		$clientDataClaims["PieceTintColors"] ??= [];
 
 		$mapper = new \JsonMapper();
 		$mapper->bEnforceMapType = false; //TODO: we don't really need this as an array, but right now we don't have enough models
