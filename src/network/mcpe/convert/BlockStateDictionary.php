@@ -31,6 +31,7 @@ use pocketmine\data\bedrock\block\BlockTypeNames;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use pocketmine\utils\Utils;
@@ -114,7 +115,9 @@ final class BlockStateDictionary{
 			//TODO: if we ever allow mutating the dictionary, this would need to be rebuilt on modification
 
 			foreach($this->states as $i => $state){
-				$table[$state->getStateName()][$state->getMeta()] = $i;
+				foreach($state->getMetas() as $meta){
+					$table[$state->getStateName()][$meta] = $i;
+				}
 			}
 
 			$this->idMetaToStateIdLookupCache = [];
@@ -193,6 +196,46 @@ final class BlockStateDictionary{
 			fn(TreeRoot $root) => BlockStateData::fromNbt($root->mustGetCompoundTag()),
 			(new NetworkNbtSerializer())->readMultiple($blockPaletteContents)
 		);
+	}
+
+	/**
+	 * Loads the protocol 388 block palette. Unlike later legacy palettes, this is a single NBT list
+	 * containing the runtime block state and the legacy ID/meta values associated with it.
+	 *
+	 * @throws NbtDataException
+	 */
+	public static function loadFromLegacyPaletteString(string $blockPaletteContents) : self{
+		$root = (new NetworkNbtSerializer())->read($blockPaletteContents)->getTag();
+		if(!$root instanceof ListTag){
+			throw new NbtDataException("Expected a TAG_List root for the legacy block palette");
+		}
+
+		$upgrader = GlobalBlockStateHandlers::getUpgrader()->getBlockStateUpgrader();
+		$entries = [];
+		$uniqueNames = [];
+		foreach((new \ReflectionClass(BlockTypeNames::class))->getConstants() as $value){
+			if(is_string($value)){
+				$uniqueNames[$value] = $value;
+			}
+		}
+
+		foreach($root->getValue() as $i => $entry){
+			if(!$entry instanceof CompoundTag){
+				throw new NbtDataException("Expected a TAG_Compound block state at index $i");
+			}
+			$stateNbt = $entry->getCompoundTag("block");
+			if($stateNbt === null){
+				throw new NbtDataException("Missing block state at index $i");
+			}
+
+			$state = BlockStateData::fromNbt($stateNbt);
+			$newState = $upgrader->upgrade($state);
+			$metas = $entry->getIntArray("meta", [0]);
+			$uniqueName = $uniqueNames[$newState->getName()] ??= $newState->getName();
+			$entries[$i] = new BlockStateDictionaryEntry($uniqueName, $newState->getStates(), $metas, $newState->equals($state) ? null : $state);
+		}
+
+		return new self($entries);
 	}
 
 	public static function loadPaletteFromJson(string $blockPaletteContents) : array {

@@ -33,6 +33,7 @@ use pocketmine\nbt\tag\Tag;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\utils\Utils;
 use function count;
+use function is_array;
 use function ksort;
 use const SORT_STRING;
 
@@ -48,16 +49,21 @@ final class BlockStateDictionaryEntry{
 	/**
 	 * @param Tag[] $stateProperties
 	 * @phpstan-param array<string, Tag> $stateProperties
+	 * @param int|int[] $meta
 	 */
 	public function __construct(
 		private string $stateName,
 		array $stateProperties,
-		private int $meta,
+		int|array $meta,
 		private ?BlockStateData $oldBlockStateData
 	){
+		$this->metas = is_array($meta) ? $meta : [$meta];
 		$rawStateProperties = self::encodeStateProperties($stateProperties);
 		$this->rawStateProperties = self::$uniqueRawStates[$rawStateProperties] ??= $rawStateProperties;
 	}
+
+	/** @var int[] */
+	private array $metas;
 
 	public function getStateName() : string{ return $this->stateName; }
 
@@ -75,7 +81,10 @@ final class BlockStateDictionaryEntry{
 		);
 	}
 
-	public function getMeta() : int{ return $this->meta; }
+	public function getMeta() : int{ return $this->metas[0] ?? 0; }
+
+	/** @return int[] */
+	public function getMetas() : array{ return $this->metas; }
 
 	/**
 	 * @return Tag[]

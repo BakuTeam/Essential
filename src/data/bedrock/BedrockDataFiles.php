@@ -113,6 +113,7 @@ final class BedrockDataFiles{
 	public const R16_TO_CURRENT_ITEM_MAP_JSON = BEDROCK_DATA_PATH . '/r16_to_current_item_map.json';
 	public const RECIPES = BEDROCK_DATA_PATH . '/recipes';
 	public const REQUIRED_ITEM_LIST_1_20_0_JSON = BEDROCK_DATA_PATH . '/required_item_list-1.20.0.json';
+	public const RUNTIME_BLOCK_STATES_1_13_0_DAT = BEDROCK_DATA_PATH . '/runtime_block_states-1.13.0.dat';
 	public const REQUIRED_ITEM_LIST_1_20_10_JSON = BEDROCK_DATA_PATH . '/required_item_list-1.20.10.json';
 	public const REQUIRED_ITEM_LIST_1_20_40_JSON = BEDROCK_DATA_PATH . '/required_item_list-1.20.40.json';
 	public const REQUIRED_ITEM_LIST_1_20_50_JSON = BEDROCK_DATA_PATH . '/required_item_list-1.20.50.json';

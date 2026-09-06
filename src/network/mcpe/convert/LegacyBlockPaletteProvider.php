@@ -30,11 +30,13 @@ use pocketmine\data\bedrock\BedrockDataFiles;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
+use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\LongTag;
 use pocketmine\nbt\tag\ShortTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\nbt\tag\Tag;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
 use pocketmine\utils\AssumptionFailedError;
@@ -78,6 +80,27 @@ final class LegacyBlockPaletteProvider{
 	 * @phpstan-return list<BlockPaletteEntry>
 	 */
 	private static function build(int $protocolId) : array{
+		if($protocolId === ProtocolInfo::PROTOCOL_1_13_0){
+			$root = (new NetworkNbtSerializer())->read(Filesystem::fileGetContents(BedrockDataFiles::RUNTIME_BLOCK_STATES_1_13_0_DAT))->getTag();
+			if(!$root instanceof ListTag){
+				throw new AssumptionFailedError("Invalid protocol 388 block state palette");
+			}
+
+			$entries = [];
+			foreach($root->getValue() as $i => $entry){
+				if(!$entry instanceof CompoundTag){
+					throw new AssumptionFailedError("Invalid protocol 388 block state entry at index $i");
+				}
+				$block = $entry->getCompoundTag("block");
+				if($block === null){
+					throw new AssumptionFailedError("Missing protocol 388 block state at index $i");
+				}
+				$entries[] = new BlockPaletteEntry($block->getString("name"), new CacheableNbt($entry));
+			}
+
+			return $entries;
+		}
+
 		$raw = Filesystem::fileGetContents(str_replace(
 			".json",
 			BlockTranslator::getCanonicalBlockStatesPath($protocolId) . ".json",

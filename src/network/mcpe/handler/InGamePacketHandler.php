@@ -99,7 +99,6 @@ use pocketmine\network\mcpe\protocol\types\ActorEvent;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\inventory\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
-use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
 use pocketmine\network\mcpe\protocol\types\inventory\MismatchTransactionData;
 use pocketmine\network\mcpe\protocol\types\inventory\NetworkInventoryAction;
 use pocketmine\network\mcpe\protocol\types\inventory\NormalTransactionData;
@@ -107,6 +106,7 @@ use pocketmine\network\mcpe\protocol\types\inventory\PredictedResult;
 use pocketmine\network\mcpe\protocol\types\inventory\ReleaseItemTransactionData;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequest;
 use pocketmine\network\mcpe\protocol\types\inventory\stackresponse\ItemStackResponse;
+use pocketmine\network\mcpe\protocol\types\inventory\UIInventorySlotOffset;
 use pocketmine\network\mcpe\protocol\types\inventory\UseItemOnEntityTransactionData;
 use pocketmine\network\mcpe\protocol\types\inventory\UseItemTransactionData;
 use pocketmine\network\mcpe\protocol\types\PlayerAction;
@@ -177,8 +177,39 @@ class InGamePacketHandler extends PacketHandler{
 	}
 
 	public function handleMovePlayer(MovePlayerPacket $packet) : bool{
-		//The client sends this every time it lands on the ground, even when using PlayerAuthInputPacket.
-		//Silence the debug spam that this causes.
+		if($this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0){
+			return true;
+		}
+
+		foreach([$packet->position->x, $packet->position->y, $packet->position->z, $packet->yaw, $packet->pitch, $packet->headYaw] as $float){
+			if(is_infinite($float) || is_nan($float)){
+				$this->session->getLogger()->debug("Invalid movement received, contains NAN/INF components");
+				return false;
+			}
+		}
+
+		$newPos = $packet->position->subtract(0, 1.62, 0)->round(4);
+		if($this->forceMoveSync){
+			$curPos = $this->player->getLocation();
+			if($newPos->distanceSquared($curPos) > 1){
+				return true;
+			}
+
+			$this->forceMoveSync = false;
+		}
+
+		$yaw = fmod($packet->yaw, 360);
+		$headYaw = fmod($packet->headYaw, 360);
+		$pitch = fmod($packet->pitch, 360);
+		if($yaw < 0){
+			$yaw += 360;
+		}
+		if($headYaw < 0){
+			$headYaw += 360;
+		}
+
+		$this->player->setRotation($yaw, $pitch, $headYaw);
+		$this->player->handleMovement($newPos);
 		return true;
 	}
 

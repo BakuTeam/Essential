@@ -108,9 +108,11 @@ final class ProtocolInfo{
 	public const PROTOCOL_1_16_0 = 407;
 	public const PROTOCOL_1_14_60 = 390;
 	public const PROTOCOL_1_14_0 = 389;
+	public const PROTOCOL_1_13_0 = 388;
 
 	public const CURRENT_PROTOCOL = self::PROTOCOL_1_26_45;
 	public const ACCEPTED_PROTOCOL = [
+		self::PROTOCOL_1_13_0,
 		self::PROTOCOL_1_14_0,
 		self::PROTOCOL_1_14_60,
 		self::PROTOCOL_1_16_20,
@@ -170,6 +172,8 @@ final class ProtocolInfo{
 
 	/** Display version shown in the server logs. This should match the version on the game's home screen. */
 	public const MINECRAFT_VERSION = 'v26.45';
+	/** Earliest Minecraft version supported by this server. */
+	public const MINECRAFT_VERSION_MIN = 'v1.13.0';
 	/** Version sent on the network for client side compatibility checks. This may differ from the display version. */
 	public const MINECRAFT_VERSION_NETWORK = '1.26.45';
 

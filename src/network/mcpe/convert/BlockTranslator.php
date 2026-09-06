@@ -35,6 +35,7 @@ use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\Filesystem;
 use pocketmine\world\format\io\GlobalBlockStateHandlers;
+use function array_keys;
 use function str_replace;
 
 /**
@@ -271,6 +272,10 @@ final class BlockTranslator{
 			self::CANONICAL_BLOCK_STATES_PATH => '-1.14.60',
 			self::BLOCK_STATE_META_MAP_PATH => '-1.14.60',
 		],
+		ProtocolInfo::PROTOCOL_1_13_0 => [
+			self::CANONICAL_BLOCK_STATES_PATH => '-1.14.60',
+			self::BLOCK_STATE_META_MAP_PATH => '-1.14.60',
+		],
 	];
 
 	/**
@@ -303,6 +308,10 @@ final class BlockTranslator{
 
 	public static function loadFromProtocolId(int $protocolId) : BlockTranslator{
 		self::setupHashProtocols();
+		if($protocolId === ProtocolInfo::PROTOCOL_1_13_0){
+			$blockStateDictionary = BlockStateDictionary::loadFromLegacyPaletteString(Filesystem::fileGetContents(BedrockDataFiles::RUNTIME_BLOCK_STATES_1_13_0_DAT));
+			return new self($blockStateDictionary, GlobalBlockStateHandlers::getSerializer());
+		}
 		$canonicalBlockStatesRaw = Filesystem::fileGetContents(str_replace(".json", self::PATHS[$protocolId][self::CANONICAL_BLOCK_STATES_PATH] . ".json", BedrockDataFiles::CANONICAL_BLOCK_STATES_JSON));
 		$metaMappingRaw = Filesystem::fileGetContents(str_replace(".json", self::PATHS[$protocolId][self::BLOCK_STATE_META_MAP_PATH] . ".json", BedrockDataFiles::BLOCK_STATE_META_MAP_JSON));
 		$isHash = isset(self::$HASH_PROTOCOLS[$protocolId]);

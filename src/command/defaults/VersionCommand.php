@@ -44,7 +44,7 @@ class VersionCommand extends VanillaCommand{
 	}
 
 	public function execute(CommandSender $sender, string $commandLabel, array $args){
-		$sender->sendMessage("This server is using Essential " . VersionInfo::BASE_VERSION . " for Minecraft: Bedrock Edition v1.14.0-v" . ProtocolInfo::MINECRAFT_VERSION_NETWORK);
+		$sender->sendMessage("This server is using Essential " . VersionInfo::BASE_VERSION . " for Minecraft: Bedrock Edition " . ProtocolInfo::MINECRAFT_VERSION_MIN . "-v" . ProtocolInfo::MINECRAFT_VERSION_NETWORK);
 		return true;
 	}
 }

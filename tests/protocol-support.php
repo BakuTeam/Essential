@@ -31,6 +31,7 @@ foreach(ProtocolInfo::ACCEPTED_PROTOCOL as $acceptedProtocol){
 $legacyProtocols = [
 	'1.14.60' => ProtocolInfo::PROTOCOL_1_14_60,
 	'1.14.0' => ProtocolInfo::PROTOCOL_1_14_0,
+	'1.13.0' => ProtocolInfo::PROTOCOL_1_13_0,
 ];
 
 echo "Bedrock 1.26.45 protocol smoke test passed (protocol $protocol, item schema $schemaId).\n";

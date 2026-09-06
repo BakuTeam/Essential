@@ -206,6 +206,10 @@ final class ChunkSerializer{
 
 			$stream->putByte(0); //border block array count
 			//Border block entry format: 1 byte (4 bits X, 4 bits Z). These are however useless since they crash the regular client.
+			if($typeConverter->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_100){
+				//Legacy clients still expect the removed extraData field to be present.
+				$stream->putVarInt(0);
+			}
 
 			if($tiles !== null){
 				$stream->put($tiles);
