@@ -23,11 +23,6 @@ if($schemaId !== $expectedSchemaId){
 	throw new RuntimeException("Protocol $protocol uses item schema $schemaId, expected $expectedSchemaId");
 }
 
-foreach(ProtocolInfo::ACCEPTED_PROTOCOL as $acceptedProtocol){
-	$typeConverter = TypeConverter::getInstance($acceptedProtocol);
-	$typeConverter->getItemTypeDictionary()->fromStringId('minecraft:stone');
-}
-
 $legacyProtocols = [
 	'1.14.60' => ProtocolInfo::PROTOCOL_1_14_60,
 	'1.14.0' => ProtocolInfo::PROTOCOL_1_14_0,
