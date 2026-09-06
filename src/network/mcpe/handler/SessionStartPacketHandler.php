@@ -49,7 +49,14 @@ final class SessionStartPacketHandler extends PacketHandler{
 
 			return true;
 		}
-		$this->session->setProtocolId($protocolVersion);
+		try{
+			$this->session->setProtocolId($protocolVersion);
+		}catch(\Throwable $e){
+			$this->session->getLogger()->debug("Failed to initialise protocol $protocolVersion: " . $e->getMessage());
+			$this->session->disconnectIncompatibleProtocol($protocolVersion);
+
+			return true;
+		}
 
 		//TODO: we're filling in the defaults to get pre-1.19.30 behaviour back for now, but we should explore the new options in the future
 		$this->session->sendDataPacket(NetworkSettingsPacket::create(

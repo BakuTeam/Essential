@@ -381,7 +381,15 @@ class NetworkSession{
 		}
 	}
 
+	/**
+	 * @throws \Throwable if the server has no usable data mappings for the given protocol; the session is left
+	 * untouched in that case, so it can still be disconnected cleanly using the default protocol.
+	 */
 	public function setProtocolId(int $protocolId) : void{
+		$typeConverter = TypeConverter::getInstance($protocolId);
+		$broadcaster = $this->server->getPacketBroadcaster($protocolId);
+		$entityEventBroadcaster = $this->server->getEntityEventBroadcaster($broadcaster, $typeConverter);
+
 		$this->protocolId = $protocolId;
 
 		if($protocolId < ProtocolInfo::PROTOCOL_1_16_0 && $this->compressor instanceof ZlibCompressor){
@@ -393,9 +401,9 @@ class NetworkSession{
 			$this->gamePacketLimiter = new PacketRateLimiter("Game Packets", self::LEGACY_INCOMING_PACKETS_PER_TICK, self::INCOMING_GAME_PACKETS_BUFFER_TICKS);
 		}
 
-		$this->typeConverter = TypeConverter::getInstance($protocolId);
-		$this->broadcaster = $this->server->getPacketBroadcaster($protocolId);
-		$this->entityEventBroadcaster = $this->server->getEntityEventBroadcaster($this->broadcaster, $this->typeConverter);
+		$this->typeConverter = $typeConverter;
+		$this->broadcaster = $broadcaster;
+		$this->entityEventBroadcaster = $entityEventBroadcaster;
 	}
 
 	public function getProtocolId() : int{
