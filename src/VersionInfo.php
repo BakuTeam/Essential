@@ -34,7 +34,7 @@ use function str_repeat;
 
 final class VersionInfo{
 	public const NAME = "Essential";
-	public const BASE_VERSION = "5.45.0";
+	public const BASE_VERSION = "5.45.1";
 	public const IS_DEVELOPMENT_BUILD = false;
 	public const BUILD_CHANNEL = "stable";
 
