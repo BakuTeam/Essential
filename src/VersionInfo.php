@@ -9,7 +9,7 @@
  * |_____|___/___/\___|_| |_|\__|_|\__,_|_|
  *
  * Essential — PocketMine-MP Fork
- * Supported MCPE/Bedrock versions: 1.12, 1.16 - 1.26.x
+ * Supported MCPE/Bedrock versions: 1.13 - 1.26.x
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -34,7 +34,7 @@ use function str_repeat;
 
 final class VersionInfo{
 	public const NAME = "Essential";
-	public const BASE_VERSION = "5.44.0";
+	public const BASE_VERSION = "5.45.0";
 	public const IS_DEVELOPMENT_BUILD = false;
 	public const BUILD_CHANNEL = "stable";
 
