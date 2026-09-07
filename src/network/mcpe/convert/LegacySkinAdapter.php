@@ -37,11 +37,12 @@ use function json_encode;
 use function random_bytes;
 use function str_ends_with;
 use function str_repeat;
+use function strtolower;
 use const JSON_THROW_ON_ERROR;
 
 class LegacySkinAdapter implements SkinAdapter{
 	private const DEFAULT_GEOMETRY_NAME = "geometry.humanoid.custom";
-	private const SLIM_GEOMETRY_NAME_SUFFIX = "Slim";
+	private const SLIM_GEOMETRY_NAME_SUFFIX = "slim";
 
 	public function toSkinData(Skin $skin) : SkinData{
 		$capeData = $skin->getCapeData();
@@ -60,7 +61,8 @@ class LegacySkinAdapter implements SkinAdapter{
 			SkinImage::fromLegacy($skin->getSkinData()), [],
 			$capeImage,
 			$skin->getGeometryData(),
-			armSize: str_ends_with($geometryName, self::SLIM_GEOMETRY_NAME_SUFFIX) ? SkinData::ARM_SIZE_SLIM : SkinData::ARM_SIZE_WIDE
+			//pre-1.13 clients report the geometry name lowercased, so the slim suffix has to be matched that way
+			armSize: str_ends_with(strtolower($geometryName), self::SLIM_GEOMETRY_NAME_SUFFIX) ? SkinData::ARM_SIZE_SLIM : SkinData::ARM_SIZE_WIDE
 		);
 	}
 

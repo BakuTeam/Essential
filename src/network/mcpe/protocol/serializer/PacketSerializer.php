@@ -82,6 +82,7 @@ use function json_decode;
 use function json_encode;
 use function strlen;
 use function strrev;
+use function strtolower;
 use function substr;
 use const JSON_THROW_ON_ERROR;
 
@@ -163,8 +164,70 @@ class PacketSerializer extends BinaryStream{
 	public function putLegacySkinAppearance(SkinData $skin) : void{
 		$this->putString($skin->getSkinImage()->getData());
 		$this->putString($skin->getCapeImage()->getData());
-		$this->putString(self::resourcePatchToLegacyGeometryName($skin->getResourcePatch()));
-		$this->putString($skin->getGeometryData());
+		$this->putString(strtolower(self::resourcePatchToLegacyGeometryName($skin->getResourcePatch())));
+		$this->putString(self::legacyGeometryData($skin->getGeometryData(), $skin->getSkinImage()));
+	}
+
+	/**
+	 * Rewrites model geometry into the schema pre-1.13 clients understand: a flat object keyed by the lowercased
+	 * model identifier, with no format version. Data already in that shape only gets its keys lowercased, and
+	 * anything unrecognisable is passed through untouched so a bad model cannot break the whole skin.
+	 */
+	private static function legacyGeometryData(string $geometryData, SkinImage $skinImage) : string{
+		if($geometryData === ""){
+			return $geometryData;
+		}
+
+		$decoded = json_decode($geometryData, true);
+		if(!is_array($decoded)){
+			return $geometryData;
+		}
+
+		if(is_array($decoded["minecraft:geometry"] ?? null)){
+			$converted = [];
+			foreach($decoded["minecraft:geometry"] as $model){
+				if(!is_array($model)){
+					continue;
+				}
+
+				$description = $model["description"] ?? null;
+				if(!is_array($description) || !is_string($description["identifier"] ?? null)){
+					continue;
+				}
+
+				//the modern schema lets the client infer the texture size from the image, the legacy one assumes
+				//64x32 unless told otherwise, which mangles the UVs of every taller skin
+				$legacyModel = [
+					"texturewidth" => (int) ($description["texture_width"] ?? $skinImage->getWidth()),
+					"textureheight" => (int) ($description["texture_height"] ?? $skinImage->getHeight()),
+				];
+				foreach(["visible_bounds_width", "visible_bounds_height", "visible_bounds_offset"] as $key){
+					if(isset($description[$key])){
+						$legacyModel[$key] = $description[$key];
+					}
+				}
+				if(isset($model["bones"])){
+					$legacyModel["bones"] = $model["bones"];
+				}
+
+				$converted[strtolower($description["identifier"])] = $legacyModel;
+			}
+
+			if($converted !== []){
+				return json_encode($converted, JSON_THROW_ON_ERROR);
+			}
+
+			return $geometryData;
+		}
+
+		unset($decoded["format_version"]);
+
+		$lowercased = [];
+		foreach($decoded as $name => $model){
+			$lowercased[strtolower((string) $name)] = $model;
+		}
+
+		return json_encode($lowercased, JSON_THROW_ON_ERROR);
 	}
 
 	private static function legacyCapeImage(string $capeData) : SkinImage{
