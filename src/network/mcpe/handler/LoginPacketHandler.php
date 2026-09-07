@@ -42,6 +42,7 @@ use pocketmine\network\mcpe\protocol\types\login\AuthenticationType;
 use pocketmine\network\mcpe\protocol\types\login\ClientData;
 use pocketmine\network\mcpe\protocol\types\login\ClientDataToSkinDataHelper;
 use pocketmine\network\mcpe\protocol\types\login\JwtChain;
+use pocketmine\network\mcpe\protocol\types\skin\SkinImage;
 use pocketmine\network\PacketHandlingException;
 use pocketmine\player\Player;
 use pocketmine\player\PlayerInfo;
@@ -50,6 +51,7 @@ use pocketmine\Server;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
 use function base64_decode;
+use function base64_encode;
 use function chr;
 use function gettype;
 use function in_array;
@@ -57,6 +59,7 @@ use function is_array;
 use function is_object;
 use function is_string;
 use function json_decode;
+use function json_encode;
 use function md5;
 use function ord;
 use function preg_match;
@@ -385,6 +388,59 @@ class LoginPacketHandler extends PacketHandler{
 	}
 
 	/**
+	 * Pre-1.13 clients send a much smaller client data payload: the legacy skin layout (raw pixels plus a geometry
+	 * name) and none of the fields added by later versions. Normalise it to the modern shape so the login can be
+	 * mapped like any other.
+	 *
+	 * @param mixed[] $clientDataClaims
+	 * @phpstan-param array<string, mixed> $clientDataClaims
+	 */
+	private static function fillLegacyClientData(array &$clientDataClaims) : void{
+		if(is_string($clientDataClaims["SkinData"] ?? null)){
+			$rawSkinData = base64_decode($clientDataClaims["SkinData"], true);
+			if($rawSkinData !== false){
+				try{
+					$skinImage = SkinImage::fromLegacy($rawSkinData);
+					$clientDataClaims["SkinImageHeight"] ??= $skinImage->getHeight();
+					$clientDataClaims["SkinImageWidth"] ??= $skinImage->getWidth();
+				}catch(\InvalidArgumentException){
+					//leave the size out; the mapper will reject the login rather than us guessing
+				}
+			}
+		}
+
+		$geometryName = $clientDataClaims["SkinGeometryName"] ?? "geometry.humanoid.custom";
+		$clientDataClaims["SkinResourcePatch"] ??= base64_encode(json_encode([
+			"geometry" => ["default" => $geometryName]
+		], JSON_THROW_ON_ERROR));
+		$clientDataClaims["SkinGeometryData"] ??= $clientDataClaims["SkinGeometry"] ?? "";
+		$clientDataClaims["SkinGeometryDataEngineVersion"] ??= "";
+		$clientDataClaims["SkinAnimationData"] ??= "";
+		$clientDataClaims["AnimatedImageData"] ??= [];
+
+		$clientDataClaims["CapeId"] ??= "";
+		$clientDataClaims["CapeImageHeight"] ??= 0;
+		$clientDataClaims["CapeImageWidth"] ??= 0;
+		$clientDataClaims["CapeOnClassicSkin"] ??= false;
+
+		//1.12 misspells this one
+		$clientDataClaims["CurrentInputMode"] ??= $clientDataClaims["CurrentInputNode"] ?? $clientDataClaims["DefaultInputMode"] ?? 1;
+
+		$clientDataClaims["PlayFabId"] ??= "";
+		$clientDataClaims["TrustedSkin"] ??= false;
+		$clientDataClaims["OverrideSkin"] ??= true;
+		$clientDataClaims["ThirdPartyNameOnly"] ??= false;
+		$clientDataClaims["CompatibleWithClientSideChunkGen"] ??= false;
+		$clientDataClaims["FilterProfanity"] ??= false;
+		$clientDataClaims["GraphicsMode"] ??= 0;
+		$clientDataClaims["IsEditorMode"] ??= false;
+		$clientDataClaims["ClientIsEditorCapable"] ??= false;
+		$clientDataClaims["ClientEditorConnectionIntent"] ??= 0;
+		$clientDataClaims["MaxViewDistance"] ??= 0;
+		$clientDataClaims["MemoryTier"] ??= 0;
+	}
+
+	/**
 	 * @throws PacketHandlingException
 	 */
 	protected function parseClientData(string $clientDataJwt) : ClientData{
@@ -392,6 +448,9 @@ class LoginPacketHandler extends PacketHandler{
 			[, $clientDataClaims, ] = JwtUtils::parse($clientDataJwt);
 		}catch(JwtException $e){
 			throw PacketHandlingException::wrap($e);
+		}
+		if($this->session->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0){
+			self::fillLegacyClientData($clientDataClaims);
 		}
 		$clientDataClaims["ArmSize"] ??= "wide";
 		$clientDataClaims["SkinColor"] ??= "";

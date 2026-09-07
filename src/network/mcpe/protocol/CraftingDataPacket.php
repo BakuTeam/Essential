@@ -129,6 +129,12 @@ class CraftingDataPacket extends DataPacket implements ClientboundPacket{
 			};
 			$previousType = $recipeType;
 		}
+		if($in->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0){
+			$this->cleanRecipes = $in->getBool();
+
+			return;
+		}
+
 		$hasPotionRecipeMeta = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0;
 		for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
 			$inputId = $in->getVarInt();
@@ -215,6 +221,12 @@ class CraftingDataPacket extends DataPacket implements ClientboundPacket{
 			$out->putVarInt($d->getTypeId());
 			$d->encode($out);
 		}
+		if($out->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0){
+			$out->putBool($this->cleanRecipes);
+
+			return;
+		}
+
 		$hasPotionRecipeMeta = $out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_0;
 		$out->putUnsignedVarInt(count($this->potionTypeRecipes));
 		foreach($this->potionTypeRecipes as $recipe){

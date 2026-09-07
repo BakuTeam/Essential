@@ -76,9 +76,14 @@ use pocketmine\utils\BinaryStream;
 use Ramsey\Uuid\Uuid;
 use Ramsey\Uuid\UuidInterface;
 use function count;
+use function is_array;
+use function is_string;
+use function json_decode;
+use function json_encode;
 use function strlen;
 use function strrev;
 use function substr;
+use const JSON_THROW_ON_ERROR;
 
 class PacketSerializer extends BinaryStream{
 
@@ -130,8 +135,65 @@ class PacketSerializer extends BinaryStream{
 		$this->put(strrev(substr($bytes, 8, 8)));
 	}
 
+	/**
+	 * Reads the flat skin appearance block used by pre-1.13 clients: raw skin and cape pixels followed by the
+	 * geometry name and data. None of the resource patch, animation or persona fields exist yet. The skin ID is not
+	 * part of the block because packets disagree on where it sits relative to it.
+	 */
+	public function getLegacySkinAppearance(string $skinId) : SkinData{
+		$skinData = $this->getString();
+		$capeData = $this->getString();
+		$geometryName = $this->getString();
+		$geometryData = $this->getString();
+
+		return new SkinData(
+			$skinId,
+			"",
+			json_encode(["geometry" => ["default" => $geometryName]], JSON_THROW_ON_ERROR),
+			SkinImage::fromLegacy($skinData),
+			[],
+			self::legacyCapeImage($capeData),
+			$geometryData
+		);
+	}
+
+	/**
+	 * Writes the flat skin appearance block used by pre-1.13 clients, without the skin ID.
+	 */
+	public function putLegacySkinAppearance(SkinData $skin) : void{
+		$this->putString($skin->getSkinImage()->getData());
+		$this->putString($skin->getCapeImage()->getData());
+		$this->putString(self::resourcePatchToLegacyGeometryName($skin->getResourcePatch()));
+		$this->putString($skin->getGeometryData());
+	}
+
+	private static function legacyCapeImage(string $capeData) : SkinImage{
+		if($capeData === ""){
+			return new SkinImage(0, 0, "");
+		}
+
+		try{
+			return SkinImage::fromLegacy($capeData);
+		}catch(\InvalidArgumentException){
+			//old clients occasionally send capes in sizes we don't know about; drop it rather than reject the skin
+			return new SkinImage(0, 0, "");
+		}
+	}
+
+	private static function resourcePatchToLegacyGeometryName(string $resourcePatch) : string{
+		$decoded = json_decode($resourcePatch, true);
+		if(is_array($decoded) && is_array($decoded["geometry"] ?? null) && is_string($decoded["geometry"]["default"] ?? null)){
+			return $decoded["geometry"]["default"];
+		}
+
+		return "geometry.humanoid.custom";
+	}
+
 	public function getSkin() : SkinData{
 		$skinId = $this->getString();
+		if($this->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0){
+			return $this->getLegacySkinAppearance($skinId);
+		}
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_210){
 			$skinPlayFabId = $this->getString();
 		}
@@ -291,6 +353,11 @@ class PacketSerializer extends BinaryStream{
 
 	public function putSkin(SkinData $skin) : void{
 		$this->putString($skin->getSkinId());
+
+		if($this->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0){
+			$this->putLegacySkinAppearance($skin);
+			return;
+		}
 
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_210){
 			$this->putString($skin->getPlayFabId());

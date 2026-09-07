@@ -312,8 +312,10 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 
 		$this->initSoftEnumsInCommandData();
 
-		for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
-			$this->enumConstraints[] = $this->getEnumConstraint($enums, $enumValues, $in);
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_13_0){
+			for($i = 0, $count = $in->getUnsignedVarInt(); $i < $count; ++$i){
+				$this->enumConstraints[] = $this->getEnumConstraint($enums, $enumValues, $in);
+			}
 		}
 	}
 
@@ -768,9 +770,11 @@ class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 			$this->putSoftEnum($enum, $out);
 		}
 
-		$out->putUnsignedVarInt(count($this->enumConstraints));
-		foreach($this->enumConstraints as $constraint){
-			$this->putEnumConstraint($constraint, $enumIndexes, $enumValueIndexes, $out);
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_13_0){
+			$out->putUnsignedVarInt(count($this->enumConstraints));
+			foreach($this->enumConstraints as $constraint){
+				$this->putEnumConstraint($constraint, $enumIndexes, $enumValueIndexes, $out);
+			}
 		}
 	}
 

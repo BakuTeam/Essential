@@ -35,6 +35,7 @@ use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
 use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
+use pocketmine\network\mcpe\protocol\types\LegacyBlockPaletteEntry;
 use pocketmine\network\mcpe\protocol\types\LevelSettings;
 use pocketmine\network\mcpe\protocol\types\NetworkPermissions;
 use pocketmine\network\mcpe\protocol\types\PlayerMovementSettings;
@@ -86,6 +87,12 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 	public array $blockPalette = [];
 
 	/**
+	 * @var LegacyBlockPaletteEntry[]
+	 * @phpstan-var list<LegacyBlockPaletteEntry>
+	 */
+	public array $legacyBlockPalette = [];
+
+	/**
 	 * Checksum of the full block palette. This is a hash of some weird stringified version of the NBT.
 	 * This is used along with the baseGameVersion to check for inconsistencies in the block palette.
 	 * Fill with 0 if you don't want to bother having the client verify the palette (seems pointless anyway).
@@ -100,11 +107,13 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 
 	/**
 	 * @generate-create-func
-	 * @param BlockPaletteEntry[] $blockPalette
-	 * @param ItemTypeEntry[]     $itemTable
+	 * @param BlockPaletteEntry[]       $blockPalette
+	 * @param LegacyBlockPaletteEntry[] $legacyBlockPalette
+	 * @param ItemTypeEntry[]           $itemTable
 	 * @phpstan-param CacheableNbt<CompoundTag> $playerActorProperties
-	 * @phpstan-param list<BlockPaletteEntry>   $blockPalette
-	 * @phpstan-param list<ItemTypeEntry>       $itemTable
+	 * @phpstan-param list<BlockPaletteEntry>       $blockPalette
+	 * @phpstan-param list<LegacyBlockPaletteEntry> $legacyBlockPalette
+	 * @phpstan-param list<ItemTypeEntry>           $itemTable
 	 */
 	public static function create(
 		int $actorUniqueId,
@@ -133,6 +142,7 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 		array $blockPalette,
 		int $blockPaletteChecksum,
 		array $itemTable,
+		array $legacyBlockPalette = [],
 	) : self{
 		$result = new self();
 		$result->actorUniqueId = $actorUniqueId;
@@ -162,6 +172,7 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 		$result->blockPalette = $blockPalette;
 		$result->blockPaletteChecksum = $blockPaletteChecksum;
 		$result->itemTable = $itemTable;
+		$result->legacyBlockPalette = $legacyBlockPalette;
 		return $result;
 	}
 
@@ -319,7 +330,7 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 	}
 
 	private function getEncodedBlockPalette(PacketSerializer $in) : void{
-		//if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_13_0){
+		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_13_0){
 			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_100){
 				for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
 					$blockName = $in->getString();
@@ -345,33 +356,31 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 					$this->blockPalette[] = new BlockPaletteEntry($blockName->getString("name"), new CacheableNbt($state));
 				}
 			}
-		//}
-		// }else{
-		// 	for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
-		// 		$name = $in->getString();
-		// 		$metadata = $in->getLShort();
-		// 		$id = $in->getLShort();
-		// 		$this->legacyBlockPalette[] = new LegacyBlockPaletteEntry($name, $id, $metadata);
-		// 	}
-		// }
+		}else{
+			for($i = 0, $len = $in->getUnsignedVarInt(); $i < $len; ++$i){
+				$name = $in->getString();
+				$metadata = $in->getLShort();
+				$id = $in->getLShort();
+				$this->legacyBlockPalette[] = new LegacyBlockPaletteEntry($name, $id, $metadata);
+			}
+		}
 	}
 
 	private function putEncodedBlockPalette(PacketSerializer $out) : void{
-		//if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_13_0){
+		if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_13_0){
 			$root = new ListTag();
 			foreach($this->blockPalette as $entry){
 				$root->push($entry->getStates()->getRoot());
 			}
 			$out->put((new NetworkNbtSerializer())->write(new TreeRoot($root)));
-		//}
-		// }else{
-		// 	$out->putUnsignedVarInt(count($this->legacyBlockPalette));
-		// 	foreach($this->legacyBlockPalette as $entry){
-		// 		$out->putString($entry->getName());
-		// 		$out->putLShort($entry->getMetadata());
-		// 		$out->putLShort($entry->getId());
-		// 	}
-		// }
+		}else{
+			$out->putUnsignedVarInt(count($this->legacyBlockPalette));
+			foreach($this->legacyBlockPalette as $entry){
+				$out->putString($entry->getName());
+				$out->putLShort($entry->getMetadata());
+				$out->putLShort($entry->getId());
+			}
+		}
 	}
 
 	public function handle(PacketHandlerInterface $handler) : bool{

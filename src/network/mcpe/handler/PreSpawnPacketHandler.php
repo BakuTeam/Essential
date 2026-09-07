@@ -67,6 +67,7 @@ class PreSpawnPacketHandler extends PacketHandler{
 		Timings::$playerNetworkSendPreSpawnGameData->startTiming();
 		try{
 			$protocolId = $this->session->getProtocolId();
+			$usesLegacyIdMetaPalette = LegacyBlockPaletteProvider::usesLegacyIdMetaPalette($protocolId);
 			$location = $this->player->getLocation();
 			$world = $location->getWorld();
 
@@ -117,9 +118,10 @@ class PreSpawnPacketHandler extends PacketHandler{
 				$typeConverter->getBlockTranslator()->networkIdsAreHashes(),
 				false,
 				new NetworkPermissions(disableClientSounds: true),
-				LegacyBlockPaletteProvider::isRequired($protocolId) ? LegacyBlockPaletteProvider::getPalette($protocolId) : [],
+				LegacyBlockPaletteProvider::isRequired($protocolId) && !$usesLegacyIdMetaPalette ? LegacyBlockPaletteProvider::getPalette($protocolId) : [],
 				0,
 				$typeConverter->getItemTypeDictionary()->getEntries(),
+				$usesLegacyIdMetaPalette ? LegacyBlockPaletteProvider::getLegacyIdMetaPalette($protocolId) : [],
 			));
 
 			if($this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_60){

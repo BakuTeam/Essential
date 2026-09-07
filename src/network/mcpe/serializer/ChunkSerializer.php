@@ -77,10 +77,14 @@ final class ChunkSerializer{
 	 *
 	 * @phpstan-param DimensionIds::* $dimensionId
 	 */
-	public static function getSubChunkCount(Chunk $chunk, int $dimensionId) : int{
+	public static function getSubChunkCount(Chunk $chunk, int $dimensionId, ?int $protocolId = null) : int{
 		//if the protocol world bounds ever exceed the PM supported bounds again in the future, we might need to
 		//polyfill some stuff here
 		[$minSubChunkIndex, $maxSubChunkIndex] = self::getDimensionChunkBounds($dimensionId);
+		if($protocolId !== null && $protocolId < ProtocolInfo::PROTOCOL_1_18_0){
+			$minSubChunkIndex = 0;
+			$maxSubChunkIndex = min($maxSubChunkIndex, 15);
+		}
 		for($y = $maxSubChunkIndex, $count = $maxSubChunkIndex - $minSubChunkIndex + 1; $y >= $minSubChunkIndex; --$y, --$count){
 			if($chunk->getSubChunk($y)->isEmptyFast()){
 				continue;
@@ -190,19 +194,13 @@ final class ChunkSerializer{
 			self::serializeChunkData($chunk, $stream, $typeConverter, $tiles);
 
 		} else {
-			$subChunkCount = min(self::getSubChunkCount($chunk, $dimensionId), 16);
+			$subChunkCount = self::getSubChunkCount($chunk, $dimensionId, $typeConverter->getProtocolId());
 
 			for($y = 0; $y < $subChunkCount; ++$y){
 				self::serializeSubChunk($chunk->getSubChunk($y), $typeConverter->getBlockTranslator(), $stream, false);
 			}
 
-			$biome = str_repeat(chr(BiomeIds::OCEAN), 256); //2d biome array
-			for($x = 0; $x < 16; ++$x){
-				for($z = 0; $z < 16; ++$z){
-					$biome[($z << 4) | $x] = chr($chunk->getBiomeId($x, $chunk->getHighestBlockAt($x, $z) ?? BiomeIds::OCEAN, $z));
-				}
-			}
-			$stream->put($biome);
+			self::serializeLegacyBiomes($chunk, $dimensionId, $stream);
 
 			$stream->putByte(0); //border block array count
 			//Border block entry format: 1 byte (4 bits X, 4 bits Z). These are however useless since they crash the regular client.
@@ -218,6 +216,58 @@ final class ChunkSerializer{
 			}
 		}
 		return $stream->getBuffer();
+	}
+
+	/**
+	 * Writes the flat 2D biome array expected by pre-1.18 clients. Each column uses the biome at its highest non-air
+	 * block, which is what the 3D biome palette would show at the surface.
+	 *
+	 * @phpstan-param DimensionIds::* $dimensionId
+	 */
+	private static function serializeLegacyBiomes(Chunk $chunk, int $dimensionId, PacketSerializer $stream) : void{
+		$biomes = str_repeat(chr(BiomeIds::OCEAN), 256);
+		[$minSubChunkIndex, $maxSubChunkIndex] = self::getDimensionChunkBounds($dimensionId);
+
+		$resolved = [];
+		$remaining = 256;
+		for($y = $maxSubChunkIndex; $y >= $minSubChunkIndex && $remaining > 0; --$y){
+			$subChunk = $chunk->getSubChunk($y);
+			if($subChunk->isEmptyFast()){
+				continue;
+			}
+
+			$biomeArray = $subChunk->getBiomeArray();
+			for($x = 0; $x < 16; ++$x){
+				for($z = 0; $z < 16; ++$z){
+					$index = ($z << 4) | $x;
+					if(isset($resolved[$index])){
+						continue;
+					}
+
+					$height = $subChunk->getHighestBlockAt($x, $z);
+					if($height === null){
+						continue;
+					}
+
+					$resolved[$index] = true;
+					--$remaining;
+					$biomes[$index] = chr($biomeArray->get($x, $height, $z));
+				}
+			}
+		}
+
+		if($remaining > 0){
+			for($x = 0; $x < 16; ++$x){
+				for($z = 0; $z < 16; ++$z){
+					$index = ($z << 4) | $x;
+					if(!isset($resolved[$index])){
+						$biomes[$index] = chr($chunk->getBiomeId($x, 0, $z));
+					}
+				}
+			}
+		}
+
+		$stream->put($biomes);
 	}
 
 	/**

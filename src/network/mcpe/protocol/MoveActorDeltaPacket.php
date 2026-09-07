@@ -90,7 +90,7 @@ class MoveActorDeltaPacket extends DataPacket implements ClientboundPacket{
 			if($in->getBool()){ $this->flags |= self::FLAG_FORCE_MOVE_LOCAL_ENTITY; }
 			$in->getBool(); //forceCompletion - no dedicated flag in this fork's model
 		}else{
-			$this->flags = $in->getLShort();
+			$this->flags = $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_13_0 ? $in->getLShort() : $in->getByte();
 			$this->xPos = $this->maybeReadCoord(self::FLAG_HAS_X, $in);
 			$this->yPos = $this->maybeReadCoord(self::FLAG_HAS_Y, $in);
 			$this->zPos = $this->maybeReadCoord(self::FLAG_HAS_Z, $in);
@@ -130,7 +130,11 @@ class MoveActorDeltaPacket extends DataPacket implements ClientboundPacket{
 			$out->putBool(($this->flags & self::FLAG_FORCE_MOVE_LOCAL_ENTITY) !== 0);
 			$out->putBool(false); //forceCompletion - not tracked by this fork's model
 		}else{
-			$out->putLShort($this->flags);
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_13_0){
+				$out->putLShort($this->flags);
+			}else{
+				$out->putByte($this->flags & 0xff);
+			}
 			$this->maybeWriteCoord(self::FLAG_HAS_X, $this->xPos, $out);
 			$this->maybeWriteCoord(self::FLAG_HAS_Y, $this->yPos, $out);
 			$this->maybeWriteCoord(self::FLAG_HAS_Z, $this->zPos, $out);

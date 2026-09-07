@@ -75,7 +75,9 @@ class ResourcePackStackPacket extends DataPacket implements ClientboundPacket{
 
 		if($in->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_100){
 			$this->experiments = new Experiments([], $in->getBool());
-			$this->baseGameVersion = $in->getString();
+			if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_13_0){
+				$this->baseGameVersion = $in->getString();
+			}
 			return;
 		}
 
@@ -103,7 +105,9 @@ class ResourcePackStackPacket extends DataPacket implements ClientboundPacket{
 
 		if($out->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_100){
 			$out->putBool(count($this->experiments->getExperiments()) > 0);
-			$out->putString($this->baseGameVersion);
+			if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_13_0){
+				$out->putString($this->baseGameVersion);
+			}
 			return;
 		}
 

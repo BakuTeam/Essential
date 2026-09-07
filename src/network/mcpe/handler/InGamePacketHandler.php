@@ -917,6 +917,18 @@ class InGamePacketHandler extends PacketHandler{
 			case PlayerAction::STOP_SNEAK:
 				$this->player->toggleSneak(false);
 				break;
+			case PlayerAction::START_SWIMMING:
+				$this->player->toggleSwim(true);
+				break;
+			case PlayerAction::STOP_SWIMMING:
+				$this->player->toggleSwim(false);
+				break;
+			case PlayerAction::START_GLIDE:
+				$this->player->toggleGlide(true);
+				break;
+			case PlayerAction::STOP_GLIDE:
+				$this->player->toggleGlide(false);
+				break;
 			default:
 				$this->session->getLogger()->debug("Unhandled/unknown player action type " . $action);
 				return false;

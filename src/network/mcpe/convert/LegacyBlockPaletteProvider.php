@@ -39,6 +39,7 @@ use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
+use pocketmine\network\mcpe\protocol\types\LegacyBlockPaletteEntry;
 use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\Filesystem;
 use function is_array;
@@ -57,6 +58,12 @@ final class LegacyBlockPaletteProvider{
 	 */
 	private static array $cache = [];
 
+	/**
+	 * @var LegacyBlockPaletteEntry[][]
+	 * @phpstan-var array<int, list<LegacyBlockPaletteEntry>>
+	 */
+	private static array $legacyIdMetaCache = [];
+
 	private function __construct(){
 	}
 
@@ -65,6 +72,47 @@ final class LegacyBlockPaletteProvider{
 	 */
 	public static function isRequired(int $protocolId) : bool{
 		return $protocolId < ProtocolInfo::PROTOCOL_1_16_100;
+	}
+
+	/**
+	 * Returns whether the given protocol expects the pre-1.13 legacy ID/meta block palette instead of the NBT one.
+	 */
+	public static function usesLegacyIdMetaPalette(int $protocolId) : bool{
+		return $protocolId < ProtocolInfo::PROTOCOL_1_13_0;
+	}
+
+	/**
+	 * @return LegacyBlockPaletteEntry[]
+	 * @phpstan-return list<LegacyBlockPaletteEntry>
+	 */
+	public static function getLegacyIdMetaPalette(int $protocolId) : array{
+		return self::$legacyIdMetaCache[$protocolId] ??= self::buildLegacyIdMeta($protocolId);
+	}
+
+	/**
+	 * @return LegacyBlockPaletteEntry[]
+	 * @phpstan-return list<LegacyBlockPaletteEntry>
+	 */
+	private static function buildLegacyIdMeta(int $protocolId) : array{
+		if($protocolId !== ProtocolInfo::PROTOCOL_1_12_0){
+			throw new AssumptionFailedError("No legacy ID/meta block palette for protocol $protocolId");
+		}
+
+		$decoded = json_decode(Filesystem::fileGetContents(BedrockDataFiles::RUNTIME_BLOCK_STATES_1_12_0_JSON), true, flags: JSON_THROW_ON_ERROR);
+		if(!is_array($decoded)){
+			throw new AssumptionFailedError("Invalid protocol 361 block state palette");
+		}
+
+		$entries = [];
+		foreach($decoded as $i => $entry){
+			if(!is_array($entry) || !isset($entry["name"], $entry["id"], $entry["data"])){
+				throw new AssumptionFailedError("Invalid protocol 361 block state entry at index $i");
+			}
+
+			$entries[] = new LegacyBlockPaletteEntry((string) $entry["name"], (int) $entry["id"], (int) $entry["data"]);
+		}
+
+		return $entries;
 	}
 
 	/**

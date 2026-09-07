@@ -43,6 +43,9 @@ final class PlayerMovementSettings{
 	public function isServerAuthoritativeBlockBreaking() : bool{ return $this->serverAuthoritativeBlockBreaking; }
 
 	public static function read(PacketSerializer $in) : self{
+		if($in->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0){
+			return new self(ServerAuthMovementMode::SERVER_AUTHORITATIVE_V2, 0, false);
+		}
 		if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_100){
 			if($in->getProtocolId() <= ProtocolInfo::PROTOCOL_1_21_80){
 				$movementType = ServerAuthMovementMode::fromPacket($in->getVarInt());
@@ -59,6 +62,9 @@ final class PlayerMovementSettings{
 	}
 
 	public function write(PacketSerializer $out) : void{
+		if($out->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0){
+			return;
+		}
 		if($out->getProtocolId() < ProtocolInfo::PROTOCOL_1_16_100){
 			$out->putBool(true);
 			return;

@@ -100,6 +100,7 @@ class PlayerListPacket extends DataPacket implements ClientboundPacket{
 		}
 		$this->type = $in->getByte();
 		$count = $in->getUnsignedVarInt();
+		$legacySkinLayout = $in->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0;
 		for($i = 0; $i < $count; ++$i){
 			$entry = new PlayerListEntry();
 
@@ -107,16 +108,21 @@ class PlayerListPacket extends DataPacket implements ClientboundPacket{
 				$entry->uuid = $in->getUUID();
 				$entry->actorUniqueId = $in->getActorUniqueId();
 				$entry->username = $in->getString();
+				if($legacySkinLayout){
+					$entry->skinData = $in->getSkin();
+				}
 				$entry->xboxUserId = $in->getString();
 				$entry->platformChatId = $in->getString();
-				$entry->buildPlatform = $in->getLInt();
-				$entry->skinData = $in->getSkin();
-				$entry->isTeacher = $in->getBool();
-				$entry->isHost = $in->getBool();
-				if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_60){
-					$entry->isSubClient = $in->getBool();
-					if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_80){
-						$entry->color = Color::fromARGB($in->getLInt());
+				if(!$legacySkinLayout){
+					$entry->buildPlatform = $in->getLInt();
+					$entry->skinData = $in->getSkin();
+					$entry->isTeacher = $in->getBool();
+					$entry->isHost = $in->getBool();
+					if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_60){
+						$entry->isSubClient = $in->getBool();
+						if($in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_80){
+							$entry->color = Color::fromARGB($in->getLInt());
+						}
 					}
 				}
 			}else{
@@ -125,7 +131,7 @@ class PlayerListPacket extends DataPacket implements ClientboundPacket{
 
 			$this->entries[$i] = $entry;
 		}
-		if($this->type === self::TYPE_ADD){
+		if($this->type === self::TYPE_ADD && $in->getProtocolId() >= ProtocolInfo::PROTOCOL_1_14_60){
 			for($i = 0; $i < $count; ++$i){
 				$this->entries[$i]->skinData->setVerified($in->getBool());
 			}
@@ -159,21 +165,27 @@ class PlayerListPacket extends DataPacket implements ClientboundPacket{
 		}
 		$out->putByte($this->type);
 		$out->putUnsignedVarInt(count($this->entries));
+		$legacySkinLayout = $out->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0;
 		foreach($this->entries as $entry){
 			if($this->type === self::TYPE_ADD){
 				$out->putUUID($entry->uuid);
 				$out->putActorUniqueId($entry->actorUniqueId);
 				$out->putString($entry->username);
+				if($legacySkinLayout){
+					$out->putSkin($entry->skinData);
+				}
 				$out->putString($entry->xboxUserId);
 				$out->putString($entry->platformChatId);
-				$out->putLInt($entry->buildPlatform);
-				$out->putSkin($entry->skinData);
-				$out->putBool($entry->isTeacher);
-				$out->putBool($entry->isHost);
-				if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_60){
-					$out->putBool($entry->isSubClient);
-					if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_80){
-						$out->putLInt(($entry->color ?? new Color(255, 255, 255))->toARGB());
+				if(!$legacySkinLayout){
+					$out->putLInt($entry->buildPlatform);
+					$out->putSkin($entry->skinData);
+					$out->putBool($entry->isTeacher);
+					$out->putBool($entry->isHost);
+					if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_60){
+						$out->putBool($entry->isSubClient);
+						if($out->getProtocolId() >= ProtocolInfo::PROTOCOL_1_21_80){
+							$out->putLInt(($entry->color ?? new Color(255, 255, 255))->toARGB());
+						}
 					}
 				}
 			}else{

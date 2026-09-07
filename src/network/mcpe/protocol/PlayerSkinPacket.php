@@ -52,6 +52,14 @@ class PlayerSkinPacket extends DataPacket implements ClientboundPacket, Serverbo
 
 	protected function decodePayload(PacketSerializer $in) : void{
 		$this->uuid = $in->getUUID();
+		if($in->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0){
+			$skinId = $in->getString();
+			$this->newSkinName = $in->getString();
+			$this->oldSkinName = $in->getString();
+			$this->skin = $in->getLegacySkinAppearance($skinId);
+			$in->getBool();
+			return;
+		}
 		$this->skin = $in->getSkin();
 		$this->newSkinName = $in->getString();
 		$this->oldSkinName = $in->getString();
@@ -62,6 +70,14 @@ class PlayerSkinPacket extends DataPacket implements ClientboundPacket, Serverbo
 
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putUUID($this->uuid);
+		if($out->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0){
+			$out->putString($this->skin->getSkinId());
+			$out->putString($this->newSkinName);
+			$out->putString($this->oldSkinName);
+			$out->putLegacySkinAppearance($this->skin);
+			$out->putBool($this->skin->isPersona());
+			return;
+		}
 		$out->putSkin($this->skin);
 		$out->putString($this->newSkinName);
 		$out->putString($this->oldSkinName);

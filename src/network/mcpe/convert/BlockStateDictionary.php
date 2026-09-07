@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace pocketmine\network\mcpe\convert;
 
 use pocketmine\data\bedrock\block\BlockStateData;
+use pocketmine\data\bedrock\block\BlockStateDeserializeException;
 use pocketmine\data\bedrock\block\BlockTypeNames;
 use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NbtDataException;
@@ -34,6 +35,7 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
+use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\Utils;
 use pocketmine\world\format\io\GlobalBlockStateHandlers;
 use function array_key_first;
@@ -78,7 +80,9 @@ final class BlockStateDictionary{
 	){
 		$table = [];
 		foreach($this->states as $stateId => $stateNbt){
-			$table[$stateNbt->getStateName()][$stateNbt->getRawStateProperties()] = $stateId;
+			//legacy palettes contain several runtime IDs which upgrade to the same modern state; the lowest one
+			//is the canonical variant, so it must win the reverse lookup
+			$table[$stateNbt->getStateName()][$stateNbt->getRawStateProperties()] ??= $stateId;
 		}
 
 		//setup fast path for stateless blocks
@@ -233,6 +237,41 @@ final class BlockStateDictionary{
 			$metas = $entry->getIntArray("meta", [0]);
 			$uniqueName = $uniqueNames[$newState->getName()] ??= $newState->getName();
 			$entries[$i] = new BlockStateDictionaryEntry($uniqueName, $newState->getStates(), $metas, $newState->equals($state) ? null : $state);
+		}
+
+		return new self($entries);
+	}
+
+	/**
+	 * Loads the protocol 361 runtime ID table. Unlike later palettes, this is a flat JSON list of legacy
+	 * string ID/meta pairs, where an entry's position in the list is the runtime ID sent to the client.
+	 */
+	public static function loadFromLegacyIdMetaTable(string $tableContents) : self{
+		$decoded = json_decode($tableContents, true, flags: JSON_THROW_ON_ERROR);
+		if(!is_array($decoded)){
+			throw new AssumptionFailedError("Expected a list of legacy block states");
+		}
+
+		$upgrader = GlobalBlockStateHandlers::getUpgrader();
+		$unknownState = GlobalBlockStateHandlers::getUnknownBlockStateData();
+		$entries = [];
+		$uniqueNames = [];
+
+		foreach(Utils::promoteKeys($decoded) as $i => $entry){
+			if(!is_array($entry) || !is_string($entry["name"] ?? null) || !is_int($entry["data"] ?? null)){
+				throw new AssumptionFailedError("Invalid legacy block state at index $i");
+			}
+
+			try{
+				$state = $upgrader->upgradeStringIdMeta($entry["name"], $entry["data"]);
+			}catch(BlockStateDeserializeException){
+				//1.12 shipped states which have no modern equivalent. They must still occupy their runtime ID,
+				//otherwise every later entry in the table would shift.
+				$state = $unknownState;
+			}
+
+			$uniqueName = $uniqueNames[$state->getName()] ??= $state->getName();
+			$entries[] = new BlockStateDictionaryEntry($uniqueName, $state->getStates(), $entry["data"], null);
 		}
 
 		return new self($entries);

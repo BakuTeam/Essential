@@ -27,6 +27,7 @@ $legacyProtocols = [
 	'1.14.60' => ProtocolInfo::PROTOCOL_1_14_60,
 	'1.14.0' => ProtocolInfo::PROTOCOL_1_14_0,
 	'1.13.0' => ProtocolInfo::PROTOCOL_1_13_0,
+	'1.12.0' => ProtocolInfo::PROTOCOL_1_12_0,
 ];
 
 echo "Bedrock 1.26.45 protocol smoke test passed (protocol $protocol, item schema $schemaId).\n";
@@ -40,7 +41,9 @@ foreach($legacyProtocols as $legacyVersion => $legacyProtocol){
 		throw new RuntimeException("Protocol $legacyProtocol should use the legacy block palette");
 	}
 
-	$legacyPalette = LegacyBlockPaletteProvider::getPalette($legacyProtocol);
+	$legacyPalette = LegacyBlockPaletteProvider::usesLegacyIdMetaPalette($legacyProtocol)
+		? LegacyBlockPaletteProvider::getLegacyIdMetaPalette($legacyProtocol)
+		: LegacyBlockPaletteProvider::getPalette($legacyProtocol);
 	$blockTranslator = TypeConverter::getInstance($legacyProtocol)->getBlockTranslator();
 	if(count($legacyPalette) !== count($blockTranslator->getBlockStateDictionary()->getStates())){
 		throw new RuntimeException("Protocol $legacyProtocol block palette doesn't match the block state dictionary");

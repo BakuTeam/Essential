@@ -276,6 +276,10 @@ final class BlockTranslator{
 			self::CANONICAL_BLOCK_STATES_PATH => '-1.14.60',
 			self::BLOCK_STATE_META_MAP_PATH => '-1.14.60',
 		],
+		ProtocolInfo::PROTOCOL_1_12_0 => [
+			self::CANONICAL_BLOCK_STATES_PATH => '-1.14.60',
+			self::BLOCK_STATE_META_MAP_PATH => '-1.14.60',
+		],
 	];
 
 	/**
@@ -308,6 +312,10 @@ final class BlockTranslator{
 
 	public static function loadFromProtocolId(int $protocolId) : BlockTranslator{
 		self::setupHashProtocols();
+		if($protocolId === ProtocolInfo::PROTOCOL_1_12_0){
+			$blockStateDictionary = BlockStateDictionary::loadFromLegacyIdMetaTable(Filesystem::fileGetContents(BedrockDataFiles::RUNTIME_BLOCK_STATES_1_12_0_JSON));
+			return new self($blockStateDictionary, GlobalBlockStateHandlers::getSerializer());
+		}
 		if($protocolId === ProtocolInfo::PROTOCOL_1_13_0){
 			$blockStateDictionary = BlockStateDictionary::loadFromLegacyPaletteString(Filesystem::fileGetContents(BedrockDataFiles::RUNTIME_BLOCK_STATES_1_13_0_DAT));
 			return new self($blockStateDictionary, GlobalBlockStateHandlers::getSerializer());
