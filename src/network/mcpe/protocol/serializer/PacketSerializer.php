@@ -158,6 +158,11 @@ class PacketSerializer extends BinaryStream{
 		);
 	}
 
+	public function putLegacySkinId(SkinData $skin) : void{
+		$fullSkinId = $skin->getFullSkinId();
+		$this->putString($fullSkinId === "" ? $skin->getSkinId() : $skin->getSkinId() . "_" . $fullSkinId);
+	}
+
 	/**
 	 * Writes the flat skin appearance block used by pre-1.13 clients, without the skin ID.
 	 */
@@ -171,7 +176,8 @@ class PacketSerializer extends BinaryStream{
 	/**
 	 * Rewrites model geometry into the schema pre-1.13 clients understand: a flat object keyed by the lowercased
 	 * model identifier, with no format version. Data already in that shape only gets its keys lowercased, and
-	 * anything unrecognisable is passed through untouched so a bad model cannot break the whole skin.
+	 * anything unrecognisable is passed through untouched so a bad model cannot break the whole skin. Models built
+	 * from poly_mesh bones are passed through as authored - see geometryContainsPolyMesh().
 	 */
 	private static function legacyGeometryData(string $geometryData, SkinImage $skinImage) : string{
 		if($geometryData === ""){
@@ -180,6 +186,10 @@ class PacketSerializer extends BinaryStream{
 
 		$decoded = json_decode($geometryData, true);
 		if(!is_array($decoded)){
+			return $geometryData;
+		}
+
+		if(self::geometryContainsPolyMesh($decoded)){
 			return $geometryData;
 		}
 
@@ -228,6 +238,26 @@ class PacketSerializer extends BinaryStream{
 		}
 
 		return json_encode($lowercased, JSON_THROW_ON_ERROR);
+	}
+
+	/**
+	 * @param mixed[] $decoded
+	 * @phpstan-param array<string, mixed> $decoded
+	 */
+	private static function geometryContainsPolyMesh(array $decoded) : bool{
+		$models = is_array($decoded["minecraft:geometry"] ?? null) ? $decoded["minecraft:geometry"] : $decoded;
+		foreach($models as $model){
+			if(!is_array($model) || !is_array($model["bones"] ?? null)){
+				continue;
+			}
+			foreach($model["bones"] as $bone){
+				if(is_array($bone) && isset($bone["poly_mesh"])){
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	private static function legacyCapeImage(string $capeData) : SkinImage{
@@ -415,12 +445,13 @@ class PacketSerializer extends BinaryStream{
 	}
 
 	public function putSkin(SkinData $skin) : void{
-		$this->putString($skin->getSkinId());
-
 		if($this->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0){
+			$this->putLegacySkinId($skin);
 			$this->putLegacySkinAppearance($skin);
 			return;
 		}
+
+		$this->putString($skin->getSkinId());
 
 		if($this->getProtocolId() >= ProtocolInfo::PROTOCOL_1_16_210){
 			$this->putString($skin->getPlayFabId());

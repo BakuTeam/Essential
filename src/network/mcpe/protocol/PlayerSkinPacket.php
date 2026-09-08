@@ -71,7 +71,7 @@ class PlayerSkinPacket extends DataPacket implements ClientboundPacket, Serverbo
 	protected function encodePayload(PacketSerializer $out) : void{
 		$out->putUUID($this->uuid);
 		if($out->getProtocolId() < ProtocolInfo::PROTOCOL_1_13_0){
-			$out->putString($this->skin->getSkinId());
+			$out->putLegacySkinId($this->skin);
 			$out->putString($this->newSkinName);
 			$out->putString($this->oldSkinName);
 			$out->putLegacySkinAppearance($this->skin);
